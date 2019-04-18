@@ -1,0 +1,8 @@
+README.txt
+setup.py
+MQDQParser.egg-info/PKG-INFO
+MQDQParser.egg-info/SOURCES.txt
+MQDQParser.egg-info/dependency_links.txt
+MQDQParser.egg-info/top_level.txt
+mqdq/__init__.py
+mqdq/line_analyzer.py
