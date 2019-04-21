@@ -15,11 +15,11 @@ from collections import Counter
 #         del c[6]
 #     return c
 
-# def foot_counter(lines, feet=3):
-#     # The foot pattern is a string, so we can consider
-#     # just the first three letters, which will 'merge' the counts
-#     # for eg SSSD and SSSS.
-#     return Counter([l['pattern'][:feet] for l in lines if l['pattern']!='corrupt'])
+def pattern_counter_raw(lines, feet=4):
+    # The foot pattern is a string, so we can consider
+    # just the first three letters, which will 'merge' the counts
+    # for eg SSSD and SSSS.
+    return Counter([l['pattern'][:feet] for l in lines if l['pattern']!='corrupt'])
 
 def caesura_counter(lines, strict=False):
     return Counter([la.metrical_nucleus(l, strict) for l in lines if l['pattern']!='corrupt'])

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import numpy
 from mqdq import counter_factory as cf
 
+__A_BIT = numpy.finfo(numpy.float64).tiny
 def calc_obs_exp(o_cntr, e_cntr):
     
     # Given two pattern counters, produce two arrays for the 
@@ -23,8 +24,66 @@ def calc_obs_exp(o_cntr, e_cntr):
         # how many we saw
         obs.append(o_cntr[b])
         # how many we expect based on the freqs in e_cntr
-        exp.append(o_n*(e_cntr[b]/e_n))
+        # plus a little bit so we don't divide by zero
+        exp.append((o_n*(e_cntr[b]/e_n))+__A_BIT)
     return (obs, exp, bins)
+
+def o_e(o_cntr, e_cntr):
+    
+    # Given two pattern counters, produce two arrays for the 
+    # observations, 
+    #
+    # In: Two counters
+    # Out: 
+    # - [obs],[exp] (ordered by the union of the counter keys)
+    # - [bins] the combined counter keys
+    
+    bins = list(set(e_cntr).union(set(o_cntr)))
+    obs = []
+    exp = []
+    for b in bins:
+        obs.append(o_cntr[b])
+        exp.append(e_cntr[b])
+    return (obs, exp, bins)
+
+def chisq(sample, comparison_data, obs_fn):
+
+	# Compare one same with another using the given observation
+	# function, and return the chi square result.
+	#
+	# In:
+	# - sample, comparison_data - Lists of <lines>
+	# - obs_fn a function that produces a Counter (the `counter_factory`
+	#   module is full of these)
+	# Out: a scipy.stats.chisquare Result
+
+    comparison_counter = obs_fn(comparison_data)
+    sample_counter = obs_fn(sample)
+    sample_obs, sample_exp, _ = calc_obs_exp(sample_counter, comparison_counter)
+    return scipy.stats.chisquare(sample_obs, sample_exp)
+
+def chi2_contingency(sample, comparison_data, obs_fn):
+
+	# Compare one same with another using the given observation
+	# function, and return the chi square result.
+	#
+	# In:
+	# - sample, comparison_data - Lists of <lines>
+	# - obs_fn a function that produces a Counter (the `counter_factory`
+	#   module is full of these)
+	# Out: a scipy.stats.chi2_contingency Result
+
+    comparison_counter = obs_fn(comparison_data)
+    sample_counter = obs_fn(sample)
+    sample_obs, sample_exp, _ = o_e(sample_counter, comparison_counter)
+    return scipy.stats.chi2_contingency([sample_obs, sample_exp], correction=True)
+
+def fisher(sample, comparison_data, indic_fn):
+	o = indic_fn(sample)
+	ot, of = o[True], o[False]
+	c = indic_fn(comparison_data)
+	ct, cf = c[True], c[False]
+	return scipy.stats.fisher_exact([[ot,of],[ct,cf]])[1]
 
 def compare(sample, comparison_data, count, obs_fn, contig=False, seed=42):
     
@@ -51,10 +110,7 @@ def compare(sample, comparison_data, count, obs_fn, contig=False, seed=42):
     	random.seed(seed)
 
     output = []
-    comparison_counter = obs_fn(comparison_data)
-    sample_counter = obs_fn(sample)
-    sample_obs, sample_exp, _ = calc_obs_exp(sample_counter, comparison_counter)
-    sample_chisq = scipy.stats.chisquare(sample_obs, sample_exp)
+    sample_chisq = chisq(sample, comparison_data, obs_fn)
     s_len = len(sample)
     if s_len > len(comparison_data):
         raise ValueError("Sample is longer than comparison data??")
@@ -134,6 +190,7 @@ def summarize_compare(a, b, counter_fn):
 def summarize(a, counter_fn):
 	ctr = counter_fn(a)
 	bins = list(set(ctr))
+	bins.sort()
 	obs_max_len = max([len(str(d)) for d in ctr.values()])
 	o_sum = sum(ctr.values())
 	for b in bins:
