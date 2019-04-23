@@ -79,13 +79,23 @@ def chi2_contingency(sample, comparison_data, obs_fn):
     return scipy.stats.chi2_contingency([sample_obs, sample_exp], correction=True)
 
 def fisher(sample, comparison_data, indic_fn):
+
+	# Perform the Fisher Exact Test, and return the probability (p-value) that
+	# `sample` was drawn from the same distribution as `comparison_data` using
+	# the supplied Boolean `indic_fn`
+	#
+	# In:
+	# - sample, comparison_data: Lists of <line>s
+	# Out: Float, the p-value
+
+	# TODO this code feels janky, and we should validate the indic_fn return value
 	o = indic_fn(sample)
 	ot, of = o[True], o[False]
 	c = indic_fn(comparison_data)
 	ct, cf = c[True], c[False]
 	return scipy.stats.fisher_exact([[ot,of],[ct,cf]])[1]
 
-def compare(sample, comparison_data, count, obs_fn, contig=False, seed=42):
+def random_histogram(sample, comparison_data, count, obs_fn, contig=False, seed=42):
     
     # Compare a sample with another set of data, by taking many random
     # subsamples of the comparison_data and computing the chi-square
@@ -130,9 +140,9 @@ def compare(sample, comparison_data, count, obs_fn, contig=False, seed=42):
     return (output, sample_chisq.statistic, sample_chisq.pvalue)
 
 
-def histogram(data, sample_chisq, sample_p, title_string, facecolor='g'):
+def plot_histogram(data, sample_chisq, sample_p, title_string, facecolor='g'):
     
-    # Plot the output from compare.
+    # Plot the output from random_histogram.
     #
     # In:
     #   data - an array of chi-square scores
@@ -162,7 +172,18 @@ def histogram(data, sample_chisq, sample_p, title_string, facecolor='g'):
     )
     return plt
 
-def summarize_compare(a, b, counter_fn):
+def compare(a, b, counter_fn):
+
+	# Print a comparative analysis of the counts obtained from two
+	# sets of lines, using the supplied `counter_fn` (see `counter_factory`)
+	# Also prints a percentage delta, which is calculated as simply
+	# the frequency in a minus the frequency in b.
+	#
+	# In:
+	# - a, b lists of <line>s
+	# - counter_fn a function that takes lists of lines and returns a Counter
+	# Out: (no return value) Prints the comparison
+
 	o_ary,e_ary,bins = calc_obs_exp(counter_fn(a), counter_fn(b))
 	results = list(zip(zip(o_ary,e_ary),bins))
 	results.sort(key=lambda x: x[1])
@@ -188,6 +209,15 @@ def summarize_compare(a, b, counter_fn):
 			)
 
 def summarize(a, counter_fn):
+	
+	# Print a quick summary of the relative frequencies of the
+	# bins in a, using the supplied counter_fn. Cf `compare`
+	#
+	# In:
+	# - a, a list of <line>s
+	# - counter_fn a function that takes lists of lines and returns a Counter
+	# Out: (no return value) Prints the summary.
+
 	ctr = counter_fn(a)
 	bins = list(set(ctr))
 	bins.sort()
