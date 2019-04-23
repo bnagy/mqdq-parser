@@ -136,12 +136,14 @@ def txt(l, scan=False):
     res = []
 
     try:
-        if l['pattern'] == 'corrupt':
-            raise ValueError("Can't calculate conflicts on a corrupt line!")
+            
         words = l('word')
         res=[]
         if not scan:
             return ' '.join([w.text for w in l('word')])
+        if l['pattern']=='corrupt':
+            return ' '.join([w.text for w in l('word')]) + "\n[corrupt]"
+
         for w in words:
             if len(w['sy'])==0:
                 if w.has_attr('mf') and w['mf']=='PE':
@@ -169,22 +171,25 @@ def txt(l, scan=False):
     
     return (s1.strip() + '\n' + s2.strip())
 
-def txt_and_number(lines, every=5, scan=False):
-    n_len = len(str(len(lines)))
+def txt_and_number(lines, every=5, scan=False, start_at=0):
+    
+    # We can't assume lines has been cleaned!
+
+    n_len = len(str(len(lines)+start_at))
     strs = [txt(l,scan) for l in lines]
     numbered = []
     for idx, s in enumerate(strs):      
         if scan:
             s1, s2 = s.splitlines()
-            if idx%every==0:
-                s1 = ("%*d  "%(n_len,idx)) + s1
+            if (idx+start_at)%every==0:
+                s1 = ("%*d  " % (n_len,idx+start_at)) + s1
             else:
                 s1 = ' '*(n_len+2) + s1
             s2 = ' '*(n_len+2) + s2
             numbered.append('\n'.join([s1,s2]))
         else:
-            if idx%every==0:
-                s = ("%*d  "%(n_len,idx)) + s
+            if (idx+start_at)%every==0:
+                s = ("%*d  " % (n_len,idx+start_at)) + s
             else:
                 s = ' '*(n_len+2) + s
             numbered.append(s)
