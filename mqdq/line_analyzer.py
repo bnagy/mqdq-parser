@@ -2,16 +2,16 @@ from bs4 import BeautifulSoup
 from collections import Counter
 import re
 
-def classify_caesura(l, n, strict=False):
+def classify_caesura(n, l, strict=False):
     
     # Classify the caesura occurring in foot n
     # In: l, a BeautifulSoup <line>; n, an Int
     # Out: A String, Q, -, W, or S (Quasi, None, Weak, Strong)
     
-    try:
-        if l['pattern'] == 'corrupt':
-            raise ValueError("Can't calculate conflicts on a corrupt line!")
+    if l['pattern'] == 'corrupt':
+        raise ValueError("Can't operate on a corrupt line!")
             
+    try:
         for w in l('word'):
             # syllable string ends with A, and there's a wordbreak
             # so this is a strong caesura
@@ -31,7 +31,25 @@ def classify_caesura(l, n, strict=False):
 
     except:
         raise ValueError("Can't handle this: %s" % l)
-        
+  
+
+def elision_after_foot(n, l):
+
+    if l['pattern'] == 'corrupt':
+        raise ValueError("Can't operate on a corrupt line!")
+
+    try:    
+        for w in l('word'):
+            if re.search('%d[Tc]' % n, w['sy']): 
+                if w.has_attr('mf') and w['mf']=='SY':
+                    return True
+                return False
+
+        return False
+
+    except:
+        raise ValueError("Can't handle this: %s" % l)
+
 def metrical_nucleus(l, strict=False):
 
     # Classify the caesurae in the second, third and fourth feet (sometimes
@@ -57,10 +75,10 @@ def has_3rd_foot_caes(l, strict=True):
     # In: a <line>
     # Out: Boolean
     
+    if l['pattern'] == 'corrupt':
+        raise ValueError("Can't operate on a corrupt line!")
+
     try:
-        if l['pattern'] == 'corrupt':
-            raise ValueError("Can't calculate conflicts on a corrupt line!")
-            
         caes = classify_caesura(l, 3)
         if strict:
             if caes == '-' or caes == 'Q':
@@ -79,10 +97,10 @@ def diaer_after_first(l):
     # In: a <line>
     # Out: Boolean
 
+    if l['pattern'] == 'corrupt':
+        raise ValueError("Can't operate on a corrupt line!")
+    
     try:
-        if l['pattern'] == 'corrupt':
-            raise ValueError("Can't calculate conflicts on a corrupt line!")
-            
         for w in l('word'):
             if re.search('1[Tc]$', w['sy']) and w.has_attr('wb') and w['wb']=='DI':
                 return True
@@ -99,9 +117,10 @@ def has_bd(line):
     # In: a <line>
     # Out: Boolean
     
+    if line['pattern'] == 'corrupt':
+        raise ValueError("Can't check metrical features on corrupt lines!")
+
     try:
-        if line['pattern'] == 'corrupt':
-            raise ValueError("Can't check metrical features on corrupt lines!")
         # We're looking for a diaeresis after the fourth foot.
         # Here's an example line (without bucolic diaeresis):
         # <line name="52" metre="H" pattern="DSSD">
@@ -175,6 +194,7 @@ def txt_and_number(lines, every=5, scan=False, start_at=0):
     
     # We can't assume lines has been cleaned!
 
+    # the string length of the highest line number (100==3)
     n_len = len(str(len(lines)+start_at))
     strs = [txt(l,scan) for l in lines]
     numbered = []
@@ -286,11 +306,11 @@ def ic_by_foot(line):
     # In: a <line>
     # Out: a String of four syllables (Conflict or Harmony) 'CHHC'
 
+    if line['pattern'] == 'corrupt':
+        raise ValueError("Can't operate on a corrupt line!")
 
     res = []
     try:
-        if line['pattern'] == 'corrupt':
-            raise ValueError("Can't calculate conflicts on a corrupt line!")
         for i in range(1,5): # (stops at 4 not 5)
             # find the word containing the ictus for this foot
             # (some words may be found more than once)
@@ -329,13 +349,13 @@ def syllabenate(l):
     # resolving elision and prodelision.
     #
     # in: a <line>
-    # out: a list of strings
+    # out: a list of strings  
     
+    if l['pattern'] == 'corrupt':
+        raise ValueError("Can't operate on a corrupt line!")
+
     res = []
-    
     try:
-        if l['pattern'] == 'corrupt':
-            raise ValueError("Can't calculate conflicts on a corrupt line!")
         words = l('word')
         res=[]
         for w in words:

@@ -1,5 +1,7 @@
 import random
 import scipy.stats
+import matplotlib
+matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import numpy
 from mqdq import counter_factory as cf
