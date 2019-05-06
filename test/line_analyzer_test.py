@@ -8,10 +8,10 @@ import sys
 mqdq = logging.getLogger('root')
 mqdq.setLevel(logging.DEBUG)
 # Now normally I'd just set the logging.basicConfig formatter, but
-# nosetests will eat all those messages without a debug flag.
+# nosetests will eat all those messages without a --debug flag.
 # Instead, we set up a Console logger, and add that as a new handler
 # to the custom logger. So, nose eats the mqdq output, but not the
-# extra console output, so we get logging without having to pass flags
+# extra console output, and we get logging without having to pass flags
 fmt = logging.Formatter("<%(filename)s:%(lineno)3s> in %(funcName)s ] %(message)s")
 ch = logging.StreamHandler()
 ch.setFormatter(fmt)
