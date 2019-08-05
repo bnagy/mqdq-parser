@@ -6,7 +6,7 @@
 
 ## Installation
 
-I am very bad at python. I suppose you run `setup.py` at some point, or `pip install .`. There are pre-reqs. You'll need at least `numpy`, `scipy`, `pandas` and `bs4`. The aim is for this to be pip installable, but I don't know if we're there yet.
+HOPEFULLY, you can just do pip install MQDQParser and it will all work. Open issues if not.
 
 ## Usage
 
