@@ -1,0 +1,80 @@
+>>> from mqdq import line_analyzer as la
+>>> from mqdq import utils
+>>> from bs4 import BeautifulSoup
+
+>>> with open('VERG-aene.xml') as fh:
+...     aen_soup = BeautifulSoup(fh,"xml")
+
+>>> aen = utils.clean(aen_soup('line'))
+
+(These results are only sorted so the tests pass. grep
+results are not deterministically ordered)
+
+grep for stuff in the XML soup
+>>> sorted(utils.grep(aen_soup, 'strages'), key=lambda x: x['name'])
+[<line metre="H" name="526" pattern="DSSS">
+<word sy="1A" wb="CM">Quas</word>
+<word sy="1b1c" wb="DI">ibi</word>
+<word sy="2A" wb="CM">tum</word>
+<word sy="2T3A" wb="CM">ferro</word>
+<word sy="3T4A" wb="CM">strages,</word>
+<word sy="4T" wb="DI">quae</word>
+<word sy="5A5b5c" wb="DI">funera</word>
+<word sy="6A6X">Turnus</word>
+</line>, <line metre="H" name="784" pattern="DSSS">
+<word sy="1A1b1c2A" wb="CM">Aggeribus</word>
+<word sy="2T3A" wb="CM">tantas</word>
+<word sy="3T4A" wb="CM">strages</word>
+<word sy="4T5A5b" wb="CF">impune</word>
+<word sy="5c" wb="DI">per</word>
+<word sy="6A6X">urbem</word>
+</line>]
+
+Regexes supported...
+>>> sorted(utils.grep(aen_soup, 'orum$'), key=lambda x: x['name'])[-1]
+<line metre="H" name="98" pattern="SSDS">
+<word sy="1A" wb="CM">Cum</word>
+<word sy="1T2A" wb="CM">muros</word>
+<word sy="2T3A3b" wb="CF">arcemque</word>
+<word sy="3c4A" wb="CM">procul</word>
+<word sy="4T" wb="DI">ac</word>
+<word sy="5A5b" wb="CF">rara</word>
+<word sy="5c6A6X">domorum</word>
+</line>
+
+Blatting text (prints to screen)
+>>> utils.blat(utils.grep(aen_soup, 'nymphaeque'), scan=False)
+"Haec nemora indigenae Fauni Nymphaeque tenebant
+
+Or blat with scansion
+>>> utils.blat(utils.grep(aen_soup, 'nymphaeque'), scan=True)
+"Haec nemora indigenae Fauni Nymphaeque tenebant
+1A    `1b1c_ 2A`2b2c3A `3T4A 4T`5A5b    5c`6A6X
+
+There are more nymphs, of course...
+>>> len(utils.grep(aen_soup, 'nymph'))
+22
+
+Programmatically, we can also extract that text
+>>> sorted([utils.txt(l, scan=False) for l in utils.grep(aen_soup, 'nympharum')])
+['(An Phoebi soror? an Nympharum sanguinis una?),', 'Nympharum domus. Hic fessas non uincula nauis']
+
+Also with scansion
+>>> utils.txt(aen[100], scan=True)
+'Scuta uirum galeasque et fortia  corpora uoluit!"\n`1A1b `1c2A 2b2c`3A_  3T `4A4b4c `5A5b5c `6A6X'
+
+To just number up chunks of text there's txt_and_number
+>>> print("\n".join(utils.txt_and_number(aen[:12])))
+    Arma uirumque cano, Troiae qui primus ab oris
+    Italiam fato profugus Lauiniaque uenit
+    Litora, multum ille et terris iactatus et alto
+    Vi superum, saeuae memorem Iunonis ob iram,
+ 5  Multa quoque et bello passus, dum conderet urbem
+    Inferretque deos Latio, genus unde Latinum
+    Albanique patres atque altae moenia Romae.
+    Musa, mihi causas memora, quo numine laeso
+    Quidue dolens regina deum tot uoluere casus
+10  Insignem pietate uirum, tot adire labores
+    Impulerit. Tantaene animis caelestibus irae?
+    Vrbs antiqua fuit (Tyrii tenuere coloni)
+
