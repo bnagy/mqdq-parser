@@ -73,12 +73,10 @@ def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=
         dist (pandas.DataFrame): Comparison distribution
         n (int, default=5000): Number of samples to draw
         seed (int, optional): seed the PRNG for the shuffling.
-                    ( for hackers, this is not passed directly to random.seed().
-                      Check the source for details )
         feats (list, default=la.ALL_FEATURES): Features to use
         chunksz (int, default=len(samp)): Chunk size to use
 
-    Returns (as per explain, but in all cases the mean):
+    Returns (as per explain):
         f (pandas.Series): Feature contribution vector (sorted)
         m (float64): Mahalanobis distance squared. m is the sum of f.
         p: The p-value calculated from m, assuming it follows a chi-square

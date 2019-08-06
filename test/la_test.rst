@@ -27,22 +27,27 @@
 </line>
 
 The caesura in the third foot occurs over an elision
+
 >>> la.classify_caesura(aen[60], 3)
 'Q'
 
 In strict mode, it's counted as no caesura
+
 >>> la.classify_caesura(aen[60], 3, strict=True)
 '-'
 
 There's a diaeresis after foot 4, which isn't a caesura
+
 >>> la.classify_caesura(aen[60], 4)
 '-'
 
 Strong caesura in foot 2
+
 >>> la.classify_caesura(aen[60], 1)
 'S'
 
 Let's look at another line
+
 >>> aen[97]
 <line metre="H" name="98" pattern="DDDS">
 <word sy="1A" wb="CM">Non</word>
@@ -83,6 +88,7 @@ True
 
 Here's the scansion of line 61. Note how the stress (`)
 doesn't fall on the Arsis (A) of foot 2. That's a conflict.
+
 >>> print(utils.txt(aen[60], scan=True))
 Hoc metuens molemque et montis insuper altos
 1A  `1b1c2A 2T`3A_   3T `4A4T  `5A5b5c `6A6X
@@ -96,5 +102,6 @@ False
 
 We can also get the harmony of the first four feet as a string
 (the last two are almost always HH)
+
 >>> la.harmony(aen[60])
 'HCHH'
