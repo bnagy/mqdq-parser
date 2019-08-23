@@ -74,12 +74,13 @@ def txt(l, scan=False, number_with=None):
 
         for w in words:
             if len(w['sy'])==0:
-                if w.has_attr('mf') and w['mf']=='PE':
-                    # prodelision, the word is there but
-                    # the syllables vanished
-                    # Pollicita est -> Pollicit'est
-                    res.append(['_', w.text])
-                continue
+                if w.text:
+                    # There are two cases that go here. One is prodelision, where
+                    # curae est -> cur'est and normal elision with a single syllable
+                    # word where cum aspicerem -> c'aspicerem (so 'cum' ends up
+                    # with no syllables.
+                    res.append(['_',w.text])
+                    continue
             syls = la._get_syls_with_stress(w)
             if la._has_elision(w):
                 res.append([syls+'_',w.text])
