@@ -93,7 +93,7 @@ def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=
     v,m,p = explain(samp_centroid, rand_dist)
     return( m, p, v.mean().sort_values(ascending=False) )
 
-def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES):
+def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None):
 
     """Print a quick comparison of a sample against a distribution,
     using chunk_explain (cf).
@@ -134,7 +134,7 @@ def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES):
     """
 
 
-    m,p,f = chunk_explain(samp, dist, n, chunksz, feats)
+    m,p,f = chunk_explain(samp, dist, n, chunksz, feats, seed=seed)
     samp_cent = la._chunk_mean(samp,len(samp))
     dist_cent = la._chunk_mean(dist,len(dist))
     print('-'*30)
