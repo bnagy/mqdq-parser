@@ -177,6 +177,8 @@ def has_bd(line):
 def _get_syls_with_stress(w):
     if len(w['sy']) <= 2 and not _has_elision(w):
         return w['sy']
+    if w.text.lower() in _UNACCENTED:
+        return w['sy']
     syls = re.findall('..', w['sy'])
     stress = _stressed(w)
     syls[stress] = '`'+syls[stress]
