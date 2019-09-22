@@ -4,6 +4,8 @@ import re
 import numpy as np
 import pandas as pd
 from mqdq import line_analyzer as la
+from mqdq import rhyme
+import unicodedata
 
 def grep(soup, s):
 
@@ -19,22 +21,51 @@ def grep(soup, s):
         (list): a list of matching bs4 <line>s
     """
 
+    # TODO this is word by word only! Rewrite to get some kind of
+    # at least line-by-line search
+
     r = re.compile(s, re.IGNORECASE)
     return list(set(s.parent.parent for s in soup.find_all(string=r)))
 
 
-def blat(ll, scan=True):
+def blat(ll, scan=True, number_with=None):
 
     """Quickly print the text of a set of lines to screen
 
     Args:
         ll (list of bs4 <line>): Lines to print
         scan (bool): if True, add scansion (see `txt`)
+        number_with (bs4 soup): If provided, text will be numbered by finding the lines
+                                in that bs4 object (WARNING! Can be slow!):
+                                8:196> Caede tepebat humus, foribusque affixa  superbis
+                                       1A'1b 1c2A'2b 2c'3A  3b3c4A'_   4T5A'5b 5c6A'6X
     Returns:
         Nothing (the lines are printed)
     """
 
-    print("\n\n".join([txt(l, scan) for l in ll]))
+    print("\n\n".join([txt(l, scan, number_with) for l in ll]))
+
+def blatsave(ll, fn, scan=True, number_with=None):
+
+    """Quickly write the text of a set of lines to a file.
+    Opens filename with mode 'w' (will truncate and overwrite).
+    Exceptions are left to the caller.
+
+    Args:
+        ll (list of bs4 <line>): Lines to write
+        fn (String): filename to write to
+        scan (bool): if True, add scansion (see `txt`)
+        number_with (bs4 soup): If provided, text will be numbered by finding the lines
+                                in that bs4 object (WARNING! Can be slow!):
+                                8:196> Caede tepebat humus, foribusque affixa  superbis
+                                       1A'1b 1c2A'2b 2c'3A  3b3c4A'_   4T5A'5b 5c6A'6X
+
+        Returns:
+            Nothing (the lines are written)
+    """
+
+    with open(fn, 'w') as fh:
+        fh.write("\n\n".join([txt(l, scan, number_with) for l in ll]))
 
 def txt(l, scan=False, number_with=None):
 
@@ -77,7 +108,7 @@ def txt(l, scan=False, number_with=None):
                 if w.text:
                     # There are two cases that go here. One is prodelision, where
                     # curae est -> cur'est and normal elision with a single syllable
-                    # word where cum aspicerem -> c'aspicerem (so 'cum' ends up
+                    # word eg cum aspicerem -> c'aspicerem (so 'cum' ends up
                     # with no syllables.
                     res.append(['_',w.text])
                     continue
@@ -99,6 +130,42 @@ def txt(l, scan=False, number_with=None):
         else:
             s1 += txt + ' '*(len(syls) - len(txt) + 1)
             s2 += syls + ' '
+    
+    return (l_prefix + s1.strip() + '\n' + scan_prefix + s2.strip())
+
+def phonetic(l, number_with=None):
+
+    res = []
+
+    try:
+            
+        words = l('word')
+
+        l_prefix = ''
+        scan_prefix = ''
+        if number_with:
+            l_prefix = bookref(l, number_with) + '> '
+            scan_prefix = ' '*len(l_prefix)
+
+        res=[]
+        if l['pattern']=='corrupt' or l['pattern']=='not scanned':
+            return l_prefix + ' '.join([w.text for w in l('word')]) + "\n" + scan_prefix + "[corrupt]"
+
+        res = zip([w.text for w in words], rhyme.syllabify_line(l).split(' '))
+            
+    except:
+        raise ValueError("Can't handle this: %s" % l)
+    
+    s1, s2='',''
+    # make the scan and the words line up, depending on which is longer.
+    for a,b in res:
+        blen = sum(1 for ch in b if unicodedata.combining(ch) == 0)
+        if len(a)>=blen:
+            s1 += a + ' '
+            s2 += b + ' '*(len(a) - blen) + ' '
+        else:
+            s1 += a + ' '*(blen - len(a)) + ' '
+            s2 += b + ' '
     
     return (l_prefix + s1.strip() + '\n' + scan_prefix + s2.strip())
 
@@ -184,4 +251,6 @@ def clean(ll):
         (list of bs4 <line>): The lines, with the corrupt ones removed.
     """
 
-    return [l for l in ll if l['pattern']!='corrupt' and l['pattern']!='not scanned']
+    return [l for l in ll if l.has_attr('pattern')
+    and l['pattern']!='corrupt' 
+    and l['pattern']!='not scanned']
