@@ -95,15 +95,18 @@ def _try_shrink(w, syls, t, t_list, mqdq_slen):
 	if len(syls)==mqdq_slen:
 		return syls
 	
-	for (frm, to) in [('u', 'v'), ('i', 'j')]:
-		syls = _try_consonantify(frm, to, t, t_list, syls, mqdq_slen)
-		if len(syls) <= mqdq_slen:
-			return syls
+
 
 	# Now try to form various dipthongs to drop a syllable
 
 	for d in DIPTHONGS:
 		syls = _try_form_dipthong(d, t, t_list, syls, mqdq_slen)
+		if len(syls) <= mqdq_slen:
+			return syls
+
+	# What order should we do these in? Should do stats or something :(
+	for (frm, to) in [('u', 'v'), ('i', 'j')]:
+		syls = _try_consonantify(frm, to, t, t_list, syls, mqdq_slen)
 		if len(syls) <= mqdq_slen:
 			return syls
 
@@ -165,7 +168,6 @@ def _syllabify_text(w, t):
 			t_list[idx] = t_list[idx].translate(UV)
 
 	syls =  S.syllabify(''.join(t_list))
-
 	# Now, if we don't match the MQDQ length, try to fix things up
 	# using various strategies
 	if len(syls) > mqdq_slen:
