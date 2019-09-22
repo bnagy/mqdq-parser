@@ -5,3 +5,4 @@
 __pycache__
 build/
 dist/
+update_ver.sh

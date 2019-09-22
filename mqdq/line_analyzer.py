@@ -3,6 +3,7 @@ from collections import Counter
 import re
 import numpy as np
 import pandas as pd
+from mqdq import utils
 
 def classify_caesura(l, n, strict=False):
     
@@ -175,6 +176,8 @@ def has_bd(line):
         raise ValueError("Error processing: %s" % line)
 
 def _get_syls_with_stress(w):
+    if w['sy']=='':
+        return '_'
     if len(w['sy']) <= 2 and not _has_elision(w):
         return w['sy']
     if w.text.lower() in _UNACCENTED:
@@ -309,7 +312,7 @@ def conflict_in_foot(n, l):
 
     containing_word = next((w for w in l('word') if re.search('%dA'%n, w['sy'])), None)
     if not containing_word:
-        raise ValueError("No arsis for syllable %d in line?? %s" % (n, txt(l)))
+        raise ValueError("No arsis for syllable %d in line?? %s" % (n, l))
 
     return _conflict(containing_word, n)
 
