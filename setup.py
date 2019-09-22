@@ -4,7 +4,7 @@ import os
 
 setup(
 	name='MQDQParser',
-	version='0.2',
+	version='0.2.1',
 	author='Ben Nagy',
 	packages=['mqdq'],
 	license='3-Clause BSD',
