@@ -75,7 +75,7 @@ class ScansionConstants:
         self.PREFIXES = ['praeter', 'contrā', 'contra', 'subter', 'circum', 'trans', 'extro', 'suprā', 'extrā',
                          'ultra', 'iuxta', 'super', 'supra', 'intro', 'inter', 'ultrā', 'extra',
                          'retrō', 'intrō', 'retro', 'trāns', 'quasi', 'īnfrā', 'juxtā', 'infra',
-                         'ante', 'ambi', 'tran', 'dein', 'prae', 'post', 'sine', 'sed', 'pre',
+                         'ante', 'ambi', 'tran', 'dein', 'prae', 'post', 'quid', 'sine', 'sed', 'pre',
                          'sin', 'per', 'proe', 'pro', 'abs', 'sub', 'dis', 'dīs', 'con', 'dif', 'non',
                          'sīn', 'prō', 'com', 'tra', 'red', 'sur', 'nōn', 'eun', 'ob', 'ēr', 'de', 'ex',
                          'dī', 'ēf', 'ad', 'ne', 'me', 'mē', 'in', 'rē', 'nē', 'āb', 'ef', 'ēx', 'di',

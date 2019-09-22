@@ -16,6 +16,8 @@ YU = str.maketrans({'y':'ü', 'Y':'Ü'})
 VU = str.maketrans({'V':'U'})
 IJ = str.maketrans({'i':'j', 'I':'J'})
 DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ui', 'ue']
+NON_U_DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au']
+U_DIPTHONGS = ['ui', 'ue']
 DEPUNCT = str.maketrans('', '', string.punctuation)
 PERMISSIBLE_ERRORS = ['dehinc', 'semihominis', 'proinde']
 PUNCT_SPLIT = re.compile(r'([%s]+)' % re.escape(string.punctuation))
@@ -99,7 +101,7 @@ def _try_shrink(w, syls, t, t_list, mqdq_slen):
 
 	# Now try to form various dipthongs to drop a syllable
 
-	for d in DIPTHONGS:
+	for d in NON_U_DIPTHONGS:
 		syls = _try_form_dipthong(d, t, t_list, syls, mqdq_slen)
 		if len(syls) <= mqdq_slen:
 			return syls
@@ -107,6 +109,11 @@ def _try_shrink(w, syls, t, t_list, mqdq_slen):
 	# What order should we do these in? Should do stats or something :(
 	for (frm, to) in [('u', 'v'), ('i', 'j')]:
 		syls = _try_consonantify(frm, to, t, t_list, syls, mqdq_slen)
+		if len(syls) <= mqdq_slen:
+			return syls
+
+	for d in U_DIPTHONGS:
+		syls = _try_form_dipthong(d, t, t_list, syls, mqdq_slen)
 		if len(syls) <= mqdq_slen:
 			return syls
 

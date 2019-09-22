@@ -32,6 +32,6 @@
  1:8  > Musa,   mihi   causas   memora,    quo numine    laeso
         `Mū.sa, `mi.hī `kau.sas `me.mo.rā, kwo `nū.mi.ne `lae.so
  1:9  > Quidue   dolens   regina    deum   tot uoluere    casus
-        `Qui.due `do.lens rē.`gī.na `de.ūm tot `wō.lue.re `kā.sus
+        `Quid.we `do.lens rē.`gī.na `de.ūm tot `wol.we.re `kā.sus
  1:10 > Insignem    pietate     uirum,   tot adire    labores
         Īn.`sin.jem pi.e.`tā.te `wi.rum, tot ad.`ī.re la.`bō.res
