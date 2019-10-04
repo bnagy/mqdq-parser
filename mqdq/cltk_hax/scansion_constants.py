@@ -52,7 +52,8 @@ class ScansionConstants:
 
         self.DIPTHONGS = ["ae", "au", "ui", "Ui", "uī",
                           # because the last vowel can be accented by position: potuisse
-                          "Ae", "Au", "Ei", "Eu", "Oe"]
+                          "Ae", "Au", "Ei", "Eu", "Oe",
+                          "AE", "AU", "EI", "EU", "OE"]
         self.EXCEPTIONS = { "cui": ["cui"], "Cui": ["Cui"], "hui": ["hui"], "Hui": ["Hui"], "huic": ["huic"],
                                "Huic": ["Huic"], "seu": ["seu"],
                                # easier to special case these than treat 'eu'
@@ -77,9 +78,9 @@ class ScansionConstants:
                          'retrō', 'intrō', 'retro', 'trāns', 'quasi', 'īnfrā', 'juxtā', 'infra',
                          'ante', 'ambi', 'tran', 'dein', 'prae', 'post', 'quid', 'sine', 'sed', 'pre',
                          'sin', 'per', 'proe', 'pro', 'abs', 'sub', 'dis', 'dīs', 'con', 'dif', 'non',
-                         'sīn', 'prō', 'com', 'tra', 'red', 'sur', 'nōn', 'eun', 'ob', 'ēr', 'de', 'ex',
-                         'dī', 'ēf', 'ad', 'ne', 'me', 'mē', 'in', 'rē', 'nē', 'āb', 'ef', 'ēx', 'di',
-                         'se', 'īn', 'en', 'co', 'ab', 'er', 'dē', 're', 'ēn', 'ōb', 'sē']
+                         'sīn', 'prō', 'com', 'tra', 'red', 'sur', 'nōn', 'eun', 'hui'] #'ob', 'ēr', 'de', 'ex',
+                         # 'dī', 'ēf', 'ad', 'ne', 'me', 'mē', 'in', 'rē', 'nē', 'āb', 'ef', 'ēx', 'di',
+                         # 'se', 'īn', 'en', 'co', 'ab', 'er', 'dē', 're', 'ēn', 'ōb', 'sē']
         self.PREFIXES += [s.capitalize() for s in self.PREFIXES]
 
         # self.ASPIRATES = ["pt", "Pt", "ch", "th", "Ch", "Th"]

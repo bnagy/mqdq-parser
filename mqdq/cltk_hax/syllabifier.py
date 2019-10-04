@@ -132,6 +132,7 @@ class Syllabifier:
         cleaned = words.translate(self.remove_punct_map)
         cleaned = cleaned.replace("qu", "kw")
         cleaned = cleaned.replace("Qu", "Kw")
+        cleaned = cleaned.replace("QU", "KW")
         items = cleaned.strip().split(" ")
 
         for char in cleaned:
@@ -147,6 +148,9 @@ class Syllabifier:
                 syllables[idx] = syl
             if "Kw" in syl:
                 syl = syl.replace("Kw", "Qu")
+                syllables[idx] = syl
+            if "KW" in syl:
+                syl = syl.replace("KW", "QU")
                 syllables[idx] = syl
             if "gw" in syl:
                 syl = syl.replace("gw", "gu")
@@ -384,8 +388,11 @@ class Syllabifier:
             if consonant in self.constants.MUTES and next_letter[0] in self.constants.LIQUIDS:
                 return string_utils.move_consonant_right(letters, [pos])
             if consonant in ['k', 'K'] and next_letter[0] in ['w', 'W']:
-                return string_utils.move_consonant_right(letters, [pos])
-            if consonant in ['c', 'c'] and next_letter[0] in self.constants.MUTES:
+                return string_utils.move_consonant_right(letters, [pos])                
+            if consonant in ['c', 'C'] and next_letter[0] in self.constants.MUTES:
+                return string_utils.move_consonant_left(letters, [pos])
+            if next_letter[0] in self.constants.MUTES and previous_letter[-1] not in self.constants.MUTES:
+                # prefer to move a stop back to a fricative etc than forward to make a stop cluster
                 return string_utils.move_consonant_left(letters, [pos])
             if self._contains_consonants(next_letter[0]) and self._starts_with_vowel(
                     previous_letter[-1]):

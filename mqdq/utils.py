@@ -147,11 +147,11 @@ def phonetic(l, number_with=None):
             l_prefix = bookref(l, number_with) + '> '
             scan_prefix = ' '*len(l_prefix)
 
-        res=[]
         if l['pattern']=='corrupt' or l['pattern']=='not scanned':
             return l_prefix + ' '.join([w.text for w in l('word')]) + "\n" + scan_prefix + "[corrupt]"
 
-        res = zip([w.text for w in words], rhyme.syllabify_line(l).split(' '))
+        syl_line = [w.pre_punct+'.'.join(w.syls)+w.post_punct for w in rhyme.syllabify_line(l)]
+        res = zip([w.text for w in words], syl_line)
             
     except:
         raise ValueError("Can't handle this: %s" % l)
@@ -159,6 +159,7 @@ def phonetic(l, number_with=None):
     s1, s2='',''
     # make the scan and the words line up, depending on which is longer.
     for a,b in res:
+        # need special magic to get length with combining unicode macrons
         blen = sum(1 for ch in b if unicodedata.combining(ch) == 0)
         if len(a)>=blen:
             s1 += a + ' '
