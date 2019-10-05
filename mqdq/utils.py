@@ -224,6 +224,10 @@ def which_book(l, soup):
             return d['title']
     return None
 
+def by_ref(bn,ln,soup):
+    b = soup('division')[bn-1]
+    return b('line')[ln-1]
+
 def bookref(l, soup):
 
     """Return a formatted reference book:line for a given line and text.

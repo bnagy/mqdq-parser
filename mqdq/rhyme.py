@@ -24,6 +24,7 @@ VW = str.maketrans({'v':'w', 'V':'W'})
 CK = str.maketrans({'c':'k', 'C':'K'})
 YU = str.maketrans({'y':'ü', 'Y':'Ü'})
 DEMACRON = str.maketrans({'\u0304':None})
+KILL_M = str.maketrans({'m':None})
 
 VU = str.maketrans({'V':'U'})
 IJ = str.maketrans({'i':'j', 'I':'J'})
@@ -303,6 +304,9 @@ def _phonetify(w) -> Word:
 			w.syls[idx-1]+='k'
 			w.syls[idx] = 's' + w.syls[idx][1:]
 
+		if w.syls[idx].endswith('x'):
+			w.syls[idx] = w.syls[idx][:-1] + 'ks'
+
 		# double consonants at the start of a syllable get compressed
 		dc = DBL_CONS.match(w.syls[idx])
 		if dc:
@@ -375,30 +379,92 @@ def syllabify_line(l) -> List[Word]:
 	return [_phonetify(w) for w in line]
 
 NUCLEUS_SCORES = {
-'i':{'i':1,'e':0.5, 'a':0.25, 'o':0, 'u':0, 'ü':0.25},
-'e':{'i':0.5,'e':1, 'a':0.5, 'o':0, 'u':0, 'ü':0},
-'a':{'i':0.25,'e':0.5, 'a':1, 'o':0.25, 'u':0.5, 'ü':0},
-'o':{'i':0,'e':0, 'a':0.25, 'o':1, 'u':0.5, 'ü':0.25},
-'u':{'i':0,'e':0, 'a':0, 'o':0.5, 'u':1, 'ü':0.5},
-'ü':{'i':0.25,'e':0, 'a':0, 'o':0.25, 'u':0.5, 'ü':1},
+'i':{'i':1,'e':0.7, 'a':0.42, 'o':0.42, 'u':0.4, 'ü':0.5},
+'e':{'i':0.7,'e':1, 'a':0.6, 'o':0.6, 'u':0.42, 'ü':0.5},
+'a':{'i':0.42,'e':0.6, 'a':1, 'o':0.6, 'u':0.42, 'ü':0.4},
+'o':{'i':0.42,'e':0.6, 'a':0.6, 'o':1, 'u':0.7, 'ü':0.35},
+'u':{'i':0.4,'e':0.42, 'a':0.42, 'o':0.7, 'u':1, 'ü':0.6},
+'ü':{'i':0.5,'e':0.5, 'a':0.4, 'o':0.35, 'u':0.6, 'ü':1},
+}
+
+FRIC = {'s','f'}
+UNV_STOP = {'k','t','p'}
+V_STOP = {'g','d','b'}
+STOP = UNV_STOP | V_STOP
+ALVEOLAR = {'t','d','s','z'}
+VELAR = {'g','k'}
+BILAB = {'p','b','w'}
+SON = {'n','m','l','r'}
+NAS = {'n', 'm'}
+CONT = SON | NAS | FRIC | {''}
+
+CONS_CLOSE = {
+'' : FRIC | UNV_STOP | SON,
+'t': ALVEOLAR | STOP,
+'d': STOP,
+'s': FRIC | (UNV_STOP - BILAB),
+'f': FRIC,
+'k': STOP - BILAB,
+'h': STOP, # only occurs as kh and th which are both stops
+'g': STOP - BILAB,
+'r': SON,
+'n': SON,
+'m': CONT, # m isn't really there, it nasalises the vowel
+'l': SON,
+'b': (V_STOP | BILAB) - VELAR, # b--g seems too far away
+'p': STOP - VELAR,
 }
 
 def _syl_rhyme(s1, s2):
-	#print("Scoring %s %s" % (s1,s2))
 	if s1.nucleus=='' or s2.nucleus=='':
 		return 0
 	try:
-		# dipthongs count as the simple vowel at the final
-		# position, for now.
+
+		# Basic score for the final vowel
 		nuc1 = s1.nucleus.translate(DEMACRON)[-1].lower()
 		nuc2 = s2.nucleus.translate(DEMACRON)[-1].lower()
 		score = NUCLEUS_SCORES[nuc1][nuc2]
 
-		# TODO improve this.
-		if s1.coda==s2.coda and s1.coda != '':
-			score += 0.5
+		# One's a dipthong and one isn't
+		if len(nuc1) != len(nuc2):
+			score *= 0.7
+		elif nuc1[0]!=nuc2[0] and score==1:
+			# dipthongs but first vowel not equal
+			score *= 0.7
 
-		#print(score)
+		# apply bonuses or penalties for the coda
+		try:
+			last1 = s1.coda[-1].lower()
+		except IndexError:
+			last1 = ''
+
+		try:
+			last2 = s2.coda[-1].lower()
+		except IndexError:
+			last2 = ''
+
+		# print("Nucleus: %f" % score)
+
+		if len(s1.coda) + len(s2.coda) > 2:
+			# at least one cluster
+			if s1.coda == s2.coda:
+				score *= 1.3
+			else:
+				score *= 0.6 
+		elif s1.coda==s2.coda:
+			score *= 1.3
+		elif last2 in CONS_CLOSE[last1] or last1 in CONS_CLOSE[last2]:
+			score *= 0.9
+		else:
+			score *= 0.6
+
+		# Perfect onset match gives a bonus
+		if s1.onset==s2.onset and s1.onset != '':
+			score *= 1.3
+
+		if score > 1:
+			score = 1
+		# print(score)
 		return score
 	except Exception as e:
 		print(s1)
@@ -408,7 +474,7 @@ def _syl_rhyme(s1, s2):
 def score(l1, l2):
 
 	w1, w2 = syllabify_line(l1)[-1], syllabify_line(l2)[-1]
-
+	#print("%s -- %s" % (''.join(w1.syls),''.join(w2.syls)))
 	try:
 		s_idx1 = next(i for i,v in enumerate(w1.syls) if v.stressed)
 	except StopIteration:
@@ -439,7 +505,6 @@ def score(l1, l2):
 	
 	if len(w1.syls[s_idx1:])>0 and len(w2.syls[s_idx2:])>0:
 		score += _syl_rhyme(w1.syls[-1], w2.syls[-1])
-
 	return score
 
 def combined_score(ll):
@@ -450,7 +515,7 @@ def combined_score(ll):
 	scores = [score(a,b) for a,b in combinations(ll,2)]
 	return sum(scores)/len(scores)
 
-def find_true_rhymes(ll, gather_thresh=1.4, global_thresh=1.6, min_lines=4):
+def find_true_rhymes(ll, gather_thresh=1.4, global_thresh=1.65, min_lines=4):
 
 	rhyming = False
 	working_set, final_set = [], []
@@ -473,7 +538,7 @@ def find_true_rhymes(ll, gather_thresh=1.4, global_thresh=1.6, min_lines=4):
 	            continue
 	return final_set
 
-def find_abab(ll, thresh=1.8):
+def find_abab(ll, thresh=1.65):
 
 	final_set = []
 
@@ -491,8 +556,9 @@ def find_abab(ll, thresh=1.8):
 					final_set.append(ll[idx:idx+4])
 			else:
 				final_set.append(ll[idx:idx+4])
-
-		idx+=4
+			idx+=4
+		else:
+			idx+=1
 
 	return final_set
 
