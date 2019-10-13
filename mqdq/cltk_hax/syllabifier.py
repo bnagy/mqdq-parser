@@ -391,7 +391,8 @@ class Syllabifier:
                 return string_utils.move_consonant_right(letters, [pos])                
             if consonant in ['c', 'C'] and next_letter[0] in self.constants.MUTES:
                 return string_utils.move_consonant_left(letters, [pos])
-            if next_letter[0] in self.constants.MUTES and previous_letter[-1] not in self.constants.MUTES:
+            #if next_letter[0] in self.constants.MUTES and previous_letter[-1] not in self.constants.MUTES:
+            if previous_letter[-1] not in self.constants.MUTES:
                 # prefer to move a stop back to a fricative etc than forward to make a stop cluster
                 return string_utils.move_consonant_left(letters, [pos])
             if self._contains_consonants(next_letter[0]) and self._starts_with_vowel(

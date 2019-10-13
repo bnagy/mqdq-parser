@@ -6,7 +6,8 @@ import string
 from collections import namedtuple, UserString
 from dataclasses import dataclass
 from typing import List, Any
-from bs4 import element
+import bs4
+from bs4 import BeautifulSoup
 from itertools import combinations
 
 S = Syllabifier()
@@ -14,7 +15,7 @@ VOWELS = "aeiouyAEIOUY"
 ALL_VOWELS = "aeiouyAEIOUYāēīōūȳĀĒĪŌŪȲüÜ\u0304"
 # The 'vowel' in the nucleus can also include a unicode
 # combining macron (U+0304)
-ONC = re.compile(r'([aeiouyAEIOUYāēīōūȳĀĒĪŌŪȲüÜ\u0304]+)')
+ONC = re.compile(r'([aeiouyAEIOUYāēīōūȳĀĒĪŌŪȲüÜ\u0304\u0303]+)')
 DBL_CONS = re.compile(r'^([bcdfghjklmnpqrstvwxz])\1', flags=re.I)
 
 ELISION_DROP = VOWELS + 'mM'
@@ -23,18 +24,21 @@ UV = str.maketrans({'u':'v', 'U':'V'})
 VW = str.maketrans({'v':'w', 'V':'W'})
 CK = str.maketrans({'c':'k', 'C':'K'})
 YU = str.maketrans({'y':'ü', 'Y':'Ü'})
-DEMACRON = str.maketrans({'\u0304':None})
+DEMACRON = str.maketrans({u'\u0304':None, u'\u0303':None})
 KILL_M = str.maketrans({'m':None})
 
 VU = str.maketrans({'V':'U'})
 IJ = str.maketrans({'i':'j', 'I':'J'})
-DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', r'[^qQ]ui', r'[^qQ]ue', 'ai']
+# oy appears in Juvenal
+DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ui', 'ue', 'ai', 'oy', 'ea']
 NON_U_DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au']
 U_DIPTHONGS = ['ui', 'ue']
 DEPUNCT = str.maketrans('', '', string.punctuation)
 # These are either contracted sometimes, in poetry, or
 # scanned weirdly in major works.
-PERMISSIBLE_ERRORS = ['dehinc', 'semihominis', 'semihomines', 'proinde', 'alueo', 'aureae', 'aurea']
+PERMISSIBLE_ERRORS = ['dehinc', 'semihominis', 'semihomines', 'proinde', 
+	'alueo', 'aureae', 'aurea', 'orphea', 'reliquo', 'reliquas', 'antehac', 'quoad',
+	'aquai']
 PUNCT_SPLIT = re.compile(r'([%s]+)' % re.escape(string.punctuation))
 
 class Syl(str):
@@ -75,7 +79,10 @@ def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 		end_indices = [i for i, x in enumerate(syls) if x.endswith(d1)]
 		for idx in end_indices:
 			if len(syls) > idx+1 and syls[idx+1].startswith(d2):
-				syls[idx+1] = syls[idx]+syls[idx+1]
+				if d == 'ea':
+					syls[idx+1] = syls[idx][:-1] + "j" + syls[idx+1]
+				else:
+					syls[idx+1] = syls[idx]+syls[idx+1]
 				syls = syls[:idx] + syls[idx+1:]
 				if len(syls) <= mqdq_slen:
 					return syls
@@ -83,12 +90,26 @@ def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 
 def _try_split_dipthong(d, t, t_list, syls, mqdq_slen):
 
+	# make a string that we can use as a character class
+	# in the split below (to match upper or lowercase)
 	d1 = "%s%s" % (d[0], d[0].capitalize())
 
 	if re.search(d, t, flags=re.I):
 		indices = [i for i, x in enumerate(syls) if re.search(d, x, flags=re.I)]
 		for idx in indices:
-			pre,x,post = re.split("([%s])" % d1, syls[idx])
+			try:
+				if 'u' in d1:
+					# don't split a u dipthong after 'q'
+					if re.search('qu', syls[idx], flags=re.I):
+						continue
+				else:
+					pre,x,post = re.split("([%s])" % d1, syls[idx])
+			except Exception as e:
+				print(d)
+				print(d1)
+				print(t)
+				raise e
+
 			syls = syls[:idx] + [pre+x, post] + syls[idx+1:]
 			if len(syls) >= mqdq_slen:
 				return syls
@@ -108,7 +129,6 @@ def _try_unconsonantify(frm, to, t, t_list, syls, mqdq_slen):
 def _try_consonantify(frm, to, t, t_list, syls, mqdq_slen):
 
 	frm_re = "[%s%s]" % (frm, frm.capitalize())
-
 	if re.search("%s[%s]" % (frm, VOWELS), t, flags=re.I):
 		indices = [m.start() for m in re.finditer(frm_re, t)]
 		for idx in indices:
@@ -293,10 +313,16 @@ def _phonetify(w) -> Word:
 	slen = len(w.syls)
 	if '_' in w.syls:
 		slen-=1
-	for idx, s_syl in enumerate(scan_syls):	
+	for idx, s_syl in enumerate(scan_syls):
+		if idx+1 > slen:
+			break
 
 		# phoenetic representation, but not 'real' IPA	
-		w.syls[idx] = w.syls[idx].translate(VW).translate(YU).translate(CK)
+		try:
+			w.syls[idx] = w.syls[idx].translate(VW).translate(YU).translate(CK)
+		except Exception as e:
+			print(w)
+			raise e
 
 		# x at the start of a non-initial syllable becomes the cluster 'ks'
 		# and the k moves backwards I.xi.on -> Ik.si.on
@@ -330,7 +356,10 @@ def _phonetify(w) -> Word:
 			w.syls[idx] = w.syls[idx][:-1]
 			w.syls[idx+1] = 'p' + w.syls[idx+1]
 
-	for idx, s_syl in enumerate(scan_syls):	
+	for idx, s_syl in enumerate(scan_syls):
+		if idx+1 > slen:
+			# safety valve
+			break
 		if len(w.syls[idx]) < 3 and s_syl[-1] in 'AT':
 			w.syls[idx] = _macronize_short_syl(w.syls[idx])
 
@@ -342,6 +371,16 @@ def _phonetify(w) -> Word:
 
 	# ensure that the syls are turned into the fancy subclass, in case they got
 	# made into normal strings while messing around above.
+
+	if len(w.syls)>0 and w.syls[-1][-1] in 'mM':
+		# elision has taken place by now, so final m does not
+		# precede a vowel, so it should be dropped.
+		w.syls[-1] = w.syls[-1][:-1]
+		if w.syls[-1].endswith(u'\u0304'):
+			w.syls[-1] = w.syls[-1][:-1]
+		if w.syls[-1][-1] in VOWELS:
+			w.syls[-1] = w.syls[-1] + u'\u0303'
+
 	w.syls = [Syl(s) for s in w.syls]
 
 	return w
@@ -349,7 +388,12 @@ def _phonetify(w) -> Word:
 
 def syllabify_line(l) -> List[Word]:
 
-	line = [_syllabify_word(w) for w in l('word')]
+	try:
+		line = [_syllabify_word(w) for w in l('word')]
+	except Exception as e:
+		print(l)
+		raise e
+
 
 	res = []
 
@@ -413,13 +457,13 @@ CONS_CLOSE = {
 'l': SON,
 'b': (V_STOP | BILAB) - VELAR, # b--g seems too far away
 'p': STOP - VELAR,
+'x': UNV_STOP | FRIC
 }
 
 def _syl_rhyme(s1, s2):
 	if s1.nucleus=='' or s2.nucleus=='':
 		return 0
 	try:
-
 		# Basic score for the final vowel
 		nuc1 = s1.nucleus.translate(DEMACRON)[-1].lower()
 		nuc2 = s2.nucleus.translate(DEMACRON)[-1].lower()
@@ -515,7 +559,7 @@ def combined_score(ll):
 	scores = [score(a,b) for a,b in combinations(ll,2)]
 	return sum(scores)/len(scores)
 
-def find_true_rhymes(ll, gather_thresh=1.4, global_thresh=1.65, min_lines=4):
+def find_end_rhymes(ll, gather_thresh=1.4, global_thresh=1.65, min_lines=4):
 
 	rhyming = False
 	working_set, final_set = [], []
@@ -563,7 +607,21 @@ def find_abab(ll, thresh=1.65):
 	return final_set
 
 
+def find_abba(ll, thresh=1.65):
 
+	final_set = []
+
+	idx = 0
+	while idx < len(ll)-3:
+		a1, a2 = ll[idx], ll[idx+3]
+		b1, b2 = ll[idx+1], ll[idx+2]
+		if score(a1,a2)>=thresh and score(b1,b2) >= thresh:
+			final_set.append(ll[idx:idx+4])
+			idx+=4
+		else:
+			idx+=1
+
+	return final_set
 	
 
 

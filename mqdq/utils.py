@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, element
 from collections import Counter
 import re
 import numpy as np
