@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup, element
+from bs4 import BeautifulSoup, element, Tag
 from collections import Counter
 import re
 import numpy as np
@@ -28,7 +28,7 @@ def grep(soup, s):
     return list(set(s.parent.parent for s in soup.find_all(string=r)))
 
 
-def blat(ll, scan=True, number_with=None):
+def blat(ll, scan=True, phon=False, number_with=None):
 
     """Quickly print the text of a set of lines to screen
 
@@ -43,9 +43,12 @@ def blat(ll, scan=True, number_with=None):
         Nothing (the lines are printed)
     """
 
-    print("\n\n".join([txt(l, scan, number_with) for l in ll]))
+    if ll.__class__ == bs4.element.Tag:
+        ll = [ll]
 
-def blatsave(ll, fn, scan=True, number_with=None):
+    print("\n\n".join([txt(l, scan, phon, number_with) for l in ll]))
+
+def blatsave(ll, fn, scan=True, phon=False, number_with=None):
 
     """Quickly write the text of a set of lines to a file.
     Opens filename with mode 'w' (will truncate and overwrite).
@@ -65,15 +68,15 @@ def blatsave(ll, fn, scan=True, number_with=None):
     """
 
     with open(fn, 'w') as fh:
-        fh.write("\n\n".join([txt(l, scan, number_with) for l in ll]))
+        fh.write("\n\n".join([txt(l, scan, phon, number_with) for l in ll]))
 
-def txt(l, scan=False, number_with=None):
+def txt(l, scan=False, phon=False, number_with=None):
 
     """Extract the text from a (single) line.
 
     Args:
         l (bs4 <line>): Line to operate on
-        scan (bool): If True, add a line of scansion and accent:
+        scan (bool, default=False): If True, add a line of scansion and accent:
                      Dixerat, atque illam media  inter talia   ferro
                      1A'1b1c  2A'_  2T'3A 3b'3c_ 4A'4T 5A'5b5c 6A'6X
 
@@ -95,82 +98,65 @@ def txt(l, scan=False, number_with=None):
         scan_prefix = ''
         if number_with:
             l_prefix = bookref(l, number_with) + '> '
-            scan_prefix = ' '*len(l_prefix)
+            padding = ' '*len(l_prefix)
 
         res=[]
-        if not scan:
-            return l_prefix + ' '.join([w.text for w in l('word')])
+
         if l['pattern']=='corrupt' or l['pattern']=='not scanned':
-            return l_prefix + ' '.join([w.text for w in l('word')]) + "\n" + scan_prefix + "[corrupt]"
+            return l_prefix + ' '.join([w.text for w in l('word')]) + "\n" + padding + "[corrupt]"
 
-        for w in words:
-            if len(w['sy'])==0:
-                if w.text:
-                    # There are two cases that go here. One is prodelision, where
-                    # curae est -> cur'est and normal elision with a single syllable
-                    # word eg cum aspicerem -> c'aspicerem (so 'cum' ends up
-                    # with no syllables.
-                    res.append(['_',w.text])
-                    continue
-            syls = la._get_syls_with_stress(w)
-            if la._has_elision(w):
-                res.append([syls+'_',w.text])
-            else:
-                res.append([syls,w.text])
+        ph = raw_phonetics(l)
+        syls = [la._get_syls_with_stress(w) for w in l('word')]
+        words = [w.text for w in l('word')]
             
-    except:
-        raise ValueError("Can't handle this: %s" % l)
-    
-    s1, s2='',''
-    # make the scan and the words line up, depending on which is longer.
-    for syls,txt in res:
-        if len(txt)>=len(syls):
-            s1 += txt + ' '
-            s2 += syls + ' '*(len(txt) - len(syls) + 1)
-        else:
-            s1 += txt + ' '*(len(syls) - len(txt) + 1)
-            s2 += syls + ' '
-    
-    return (l_prefix + s1.strip() + '\n' + scan_prefix + s2.strip())
-
-def phonetic(l, number_with=None):
-
-    res = []
-
-    try:
-            
-        words = l('word')
-
-        l_prefix = ''
-        scan_prefix = ''
         if number_with:
-            l_prefix = bookref(l, number_with) + '> '
-            scan_prefix = ' '*len(l_prefix)
+            words = [l_prefix] + words
+            syls = [padding] + syls
+            ph = [padding] + ph
 
-        if l['pattern']=='corrupt' or l['pattern']=='not scanned':
-            return l_prefix + ' '.join([w.text for w in l('word')]) + "\n" + scan_prefix + "[corrupt]"
+        ll = [words]
 
-        syl_line = [w.pre_punct+'.'.join(w.syls)+w.post_punct for w in rhyme.syllabify_line(l)]
-        res = zip([w.text for w in words], syl_line)
-            
+        if phon:
+            ll.append(ph)
+        if scan:
+            ll.append(syls)
+
+        return _align(*ll)
     except:
         raise ValueError("Can't handle this: %s" % l)
     
-    s1, s2='',''
-    # make the scan and the words line up, depending on which is longer.
-    for a,b in res:
-        # need special magic to get length with combining unicode macrons
-        blen = sum(1 for ch in b if unicodedata.combining(ch) == 0)
-        if len(a)>=blen:
-            s1 += a + ' '
-            s2 += b + ' '*(len(a) - blen) + ' '
-        else:
-            s1 += a + ' '*(blen - len(a)) + ' '
-            s2 += b + ' '
-    
-    return (l_prefix + s1.strip() + '\n' + scan_prefix + s2.strip())
 
-def txt_and_number(ll, every=5, scan=False, start_at=1):
+def scansion_raw(l):
+    ss = [la._get_syls_with_stress(w) for w in l('word')]
+    return ' '.join(ss)
+
+def _align(*ll):
+
+    # align a list of lists of strings
+    ss = ['' for l in ll]
+    if len(set([len(l) for l in ll])) > 1:
+        print(ll)
+        raise ValueError("Can't align, lengths not equal.")
+
+    # make the scan and the words line up, depending on which is longer.
+    zipped = zip(*ll)
+    for tupl in zipped:
+        # need special magic to get length with combining unicode macrons
+        lens = [sum(1 for ch in x if unicodedata.combining(ch) == 0) for x in tupl]
+        maxl = max(lens)
+
+        for idx, s in enumerate(tupl):
+            if lens[idx] < maxl:
+                ss[idx] = ss[idx] + s + ' '*(maxl - lens[idx]) + ' '
+            else:
+                ss[idx] = ss[idx] + s + ' '
+    
+    return '\n'.join([s.rstrip() for s in ss])
+
+def raw_phonetics(l):
+    return [w.pre_punct+'.'.join(w.syls)+w.post_punct for w in rhyme.syllabify_line(l)]
+
+def txt_and_number(ll, every=5, scan=False, phon=False, start_at=1):
     
     """Extract the text from a list of lines, with numbers. Where `txt` uses references to the text,
     this uses independent numbers. Use this method if you want to print out a sequentially numbered
@@ -179,6 +165,8 @@ def txt_and_number(ll, every=5, scan=False, start_at=1):
     Args:
         ll (list of bs4 <line>): Lines to operate on
         every (int, default=5): How often to add numbers
+        scan (bool, default=False): Include scansion codes
+        phon (bool, default=False): Include phonetic transcription
         start_at (int, default=1): Where to start the numbering
 
     Returns:
@@ -187,23 +175,16 @@ def txt_and_number(ll, every=5, scan=False, start_at=1):
 
     # the string length of the highest line number (100==3)
     n_len = len(str(len(ll)+start_at))
-    strs = [txt(l,scan) for l in ll]
+    pad = ' '*(n_len+2)
+    strs = [txt(l,scan,phon).split('\n') for l in ll]
     numbered = []
-    for idx, s in enumerate(strs):      
-        if scan:
-            s1, s2 = s.splitlines()
-            if (idx+start_at)%every==0:
-                s1 = ("%*d  " % (n_len,idx+start_at)) + s1
-            else:
-                s1 = ' '*(n_len+2) + s1
-            s2 = ' '*(n_len+2) + s2
-            numbered.append('\n'.join([s1,s2]))
+    for idx,ss in enumerate(strs):
+        if (idx+start_at)%every==0:
+            ss[0] = ("%*d  " % (n_len,idx+start_at)) + ss[0]
+            ss[1:] = [pad+s for s in ss[1:]]
         else:
-            if (idx+start_at)%every==0:
-                s = ("%*d  " % (n_len,idx+start_at)) + s
-            else:
-                s = ' '*(n_len+2) + s
-            numbered.append(s)
+            ss = [pad+s for s in ss]
+        numbered.append('\n'.join(ss))
 
     return numbered
 

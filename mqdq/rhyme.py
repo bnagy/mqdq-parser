@@ -13,6 +13,8 @@ from itertools import combinations
 S = Syllabifier()
 VOWELS = "aeiouyAEIOUY"
 ALL_VOWELS = "aeiouyAEIOUYāēīōūȳĀĒĪŌŪȲüÜ\u0304"
+COMBINING_MACRON = u'\u0304'
+COMBINING_TILDE = u'\u0303'
 # The 'vowel' in the nucleus can also include a unicode
 # combining macron (U+0304)
 ONC = re.compile(r'([aeiouyAEIOUYāēīōūȳĀĒĪŌŪȲüÜ\u0304\u0303]+)')
@@ -24,22 +26,37 @@ UV = str.maketrans({'u':'v', 'U':'V'})
 VW = str.maketrans({'v':'w', 'V':'W'})
 CK = str.maketrans({'c':'k', 'C':'K'})
 YU = str.maketrans({'y':'ü', 'Y':'Ü'})
-DEMACRON = str.maketrans({u'\u0304':None, u'\u0303':None})
+DEMACRON = str.maketrans({COMBINING_MACRON:None, COMBINING_TILDE:None})
 KILL_M = str.maketrans({'m':None})
 
 VU = str.maketrans({'V':'U'})
 IJ = str.maketrans({'i':'j', 'I':'J'})
 # oy appears in Juvenal
-DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ui', 'ue', 'ai', 'oy', 'ea']
-NON_U_DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au']
+DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ui', 'ue'] #, 'ai', 'oy', 'ea']
+RARE_DIPTHONGS = ['ai', 'oy', 'ea']
+NON_U_DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ai', 'oy', 'ea']
 U_DIPTHONGS = ['ui', 'ue']
 DEPUNCT = str.maketrans('', '', string.punctuation)
 # These are either contracted sometimes, in poetry, or
 # scanned weirdly in major works.
-PERMISSIBLE_ERRORS = ['dehinc', 'semihominis', 'semihomines', 'proinde', 
-	'alueo', 'aureae', 'aurea', 'orphea', 'reliquo', 'reliquas', 'antehac', 'quoad',
+WEIRD_SCANS = ['dehinc', 'semihominis', 'semihomines', 
+	'alueo', 'reliquo', 'reliquas', 'antehac', 'quoad',
 	'aquai']
+
+SCAN_HAX = {
+	'dehinc':['deink'],
+	'semihomines':['se','mi','jom','nes'],
+	'semihominis':['se','mi','jom','nis'],
+	'alueo':['al','wjo'],
+	'reliquo':['re','li','ku','o'], # Lucr. DNR
+	'reliquas':['re','li','ku','as'],
+	'antehac':['an', 'tjak'],
+	'quoad':['quoad'], # leave 'qu', will be phonetified later
+	'aquai':['a','ku','a','i'],
+}
+
 PUNCT_SPLIT = re.compile(r'([%s]+)' % re.escape(string.punctuation))
+
 
 class Syl(str):
 
@@ -79,8 +96,19 @@ def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 		end_indices = [i for i, x in enumerate(syls) if x.endswith(d1)]
 		for idx in end_indices:
 			if len(syls) > idx+1 and syls[idx+1].startswith(d2):
+
+				# special cases:
 				if d == 'ea':
+					# ea is not a 'real' Latin dipthong, but it is subject
+					# to contraction by some of the poets
 					syls[idx+1] = syls[idx][:-1] + "j" + syls[idx+1]
+				if d == 'ue' and len(syls)==idx+2 and len(syls[idx+1])==1:
+					# We have eg quid.u.e, so we should form
+					# the clitic 've', not the dipthong 'ue'. This
+					# will be wrong less often. This amounts to running
+					# consonantify instead of form_dipthong for this special
+					# case.
+					return _try_consonantify('u', 'v', t, t_list, syls, mqdq_slen)
 				else:
 					syls[idx+1] = syls[idx]+syls[idx+1]
 				syls = syls[:idx] + syls[idx+1:]
@@ -159,19 +187,30 @@ def _try_shrink(w, syls, t, t_list, mqdq_slen):
 	if len(syls)==mqdq_slen:
 		return syls
 
-	# Now try to form various dipthongs to drop a syllable
-
-	for d in DIPTHONGS:
-		syls = _try_form_dipthong(d, t, t_list, syls, mqdq_slen)
-		if len(syls) <= mqdq_slen:
-			return syls
-	# What order should we do these in? Should do stats or something :(
-	for (frm, to) in [('u', 'v'), ('i', 'j')]:
+	# it's much more common to consonantify a 'u' than form a dipthong.
+	for (frm, to) in [('u', 'v')]:
 		syls = _try_consonantify(frm, to, t, t_list, syls, mqdq_slen)
 		if len(syls) <= mqdq_slen:
 			return syls
 
+	# Now try to form various dipthongs to drop a syllable
+	for d in DIPTHONGS:
+		syls = _try_form_dipthong(d, t, t_list, syls, mqdq_slen)
+		if len(syls) <= mqdq_slen:
+			return syls
 
+	# need to form 'oe' before consonantifying 'i' for moenia
+
+	for (frm, to) in [('i', 'j')]:
+		syls = _try_consonantify(frm, to, t, t_list, syls, mqdq_slen)
+		if len(syls) <= mqdq_slen:
+			return syls
+
+	# There are a few more, which we only want to try if all consonantification fails.
+	for d in RARE_DIPTHONGS:
+		syls = _try_form_dipthong(d, t, t_list, syls, mqdq_slen)
+		if len(syls) <= mqdq_slen:
+			return syls
 
 	# Last chance - 'ee' / 'ii' contraction
 	if re.search('ee', t, flags=re.I):
@@ -204,7 +243,7 @@ def _macronize_short_syl(syl):
 	if len(syl)>1 and all(x in VOWELS for x in list(syl)):
 		return syl
 
-	l = [x+u'\u0304' if x in VOWELS else x for x in list(syl)]
+	l = [x+COMBINING_MACRON if x in VOWELS else x for x in list(syl)]
 	return ''.join(l)
 
 def _syllabify_text(w, t):
@@ -223,6 +262,17 @@ def _syllabify_text(w, t):
 		# but the MQDQ scansion records it as having 0 (it
 		# vanishes)
 		mqdq_slen += 1
+
+	# a very few words are scanned strangely. In those cases, if
+	# the mqdq_slen matches the weird scansion, just return it.
+	# these are mostly unusual contractions
+	if t.lower() in SCAN_HAX:
+		hax = SCAN_HAX[t.lower()][:]
+		if len(hax)==mqdq_slen:
+			# copy the capitalisation of t
+			# still no good for INSCRIPTION CASE
+			hax[0] = t[0] + hax[0][1:]
+			return hax
 
 	t_list = list(t)
 
@@ -256,8 +306,6 @@ def _syllabify_text(w, t):
 	if len(syls)==mqdq_slen:
 		return [Syl(s) for s in syls]
 	else:
-		if w.text.translate(DEPUNCT).lower() in PERMISSIBLE_ERRORS:
-			return [Syl(s) for s in syls]
 		raise ValueError("Length mismatch syllabifying %s (have %s, want length %d)" % (w.text, '.'.join(syls), mqdq_slen))
 
 
@@ -333,28 +381,39 @@ def _phonetify(w) -> Word:
 		if w.syls[idx].endswith('x'):
 			w.syls[idx] = w.syls[idx][:-1] + 'ks'
 
-		# double consonants at the start of a syllable get compressed
+		# remaining double consonants at the start of a syllable get compressed
+		# geminate consonants in general should already have been split
 		dc = DBL_CONS.match(w.syls[idx])
 		if dc:
 			w.syls[idx] = dc.group(1) + w.syls[idx][2:]
 
-		# qu at the start of a syllable becomes 'kw', although really
-		# it should probably be more like aspirated k (kʰ) per Allen
-		if w.syls[idx].startswith('qu'):
-			w.syls[idx] = 'kw' + w.syls[idx][2:]
+		# qu becomes 'kw', although really
+		# it should probably be more like rounded k (kʷ) per Allen
+		if re.match('qu', w.syls[idx], flags=re.I):
+			w.syls[idx] = re.sub('qu', 'kw', w.syls[idx])
+			w.syls[idx] = re.sub('Qu', 'Kw', w.syls[idx])
+			w.syls[idx] = re.sub('QU', 'KW', w.syls[idx])
 
 		# gn was pronounced as a palatalised nasal, which I'm writing as nj	
+		# TODO should also do this after elision somehow
+		# magnum Alciden -> man._ Jal.ki.den
 		if len(w.syls) > idx+1 and w.syls[idx].endswith('g') and w.syls[idx+1].startswith('n'):
 			# mag.nus -> man.jus
 			w.syls[idx] = w.syls[idx][:-1]+'n'
 			w.syls[idx+1] = 'j' + w.syls[idx+1][1:]
 
-		# the cluster 'ph' represents an aspirated p (pʰ) so these should not be split
+		# the cluster 'ph' / 'kh' represent aspirated p (pʰ/kʰ) so these should not be split
 		# across syllable boundaries. Can't change 'ph' to 'f' because it's
 		# incorrect (Allen, Vox Latina, 26)
+		#
+		# I am leaving the 'h'. Arguably wrong. Are p/pʰ phonemically different in Latin?
+		# (pʰ is really only in Greek imports...)
 		if len(w.syls) > idx+1 and w.syls[idx].endswith('p') and w.syls[idx+1].startswith('h'):
 			w.syls[idx] = w.syls[idx][:-1]
 			w.syls[idx+1] = 'p' + w.syls[idx+1]
+		if len(w.syls) > idx+1 and w.syls[idx].endswith('k') and w.syls[idx+1].startswith('h'):
+			w.syls[idx] = w.syls[idx][:-1]
+			w.syls[idx+1] = 'k' + w.syls[idx+1]
 
 	for idx, s_syl in enumerate(scan_syls):
 		if idx+1 > slen:
@@ -376,10 +435,10 @@ def _phonetify(w) -> Word:
 		# elision has taken place by now, so final m does not
 		# precede a vowel, so it should be dropped.
 		w.syls[-1] = w.syls[-1][:-1]
-		if w.syls[-1].endswith(u'\u0304'):
+		if w.syls[-1].endswith(COMBINING_MACRON):
 			w.syls[-1] = w.syls[-1][:-1]
 		if w.syls[-1][-1] in VOWELS:
-			w.syls[-1] = w.syls[-1] + u'\u0303'
+			w.syls[-1] = w.syls[-1] + COMBINING_TILDE
 
 	w.syls = [Syl(s) for s in w.syls]
 
@@ -393,7 +452,6 @@ def syllabify_line(l) -> List[Word]:
 	except Exception as e:
 		print(l)
 		raise e
-
 
 	res = []
 
@@ -606,7 +664,6 @@ def find_abab(ll, thresh=1.65):
 
 	return final_set
 
-
 def find_abba(ll, thresh=1.65):
 
 	final_set = []
@@ -622,11 +679,3 @@ def find_abba(ll, thresh=1.65):
 			idx+=1
 
 	return final_set
-	
-
-
-
-
-
-
-

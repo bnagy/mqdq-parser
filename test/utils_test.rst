@@ -88,3 +88,51 @@ To just number up chunks of text there's txt_and_number
     Impulerit. Tantaene animis caelestibus irae?
     Vrbs antiqua fuit (Tyrii tenuere coloni)
 
+Which works with scansion
+
+>>> print("\n".join(utils.txt_and_number(aen[:10], scan=True)))
+    Arma  uirumque cano, Troiae qui primus ab oris
+    `1A1b 1c`2A2b  `2c3A `3T4A  4T  `5A5b  5c `6A6X
+    Italiam   fato  profugus Lauiniaque uenit
+    1A`1b1c2A `2T3A `3b3c4A  4T`5A5b5c  `6A6X
+    Litora, multum ille et terris iactatus et alto
+    `1A1b1c `2A    `2T  3A `3T4A  4T`5A5b  5c `6A6X
+    Vi superum, saeuae memorem Iunonis ob iram,
+    1A `1b1c2A  `2T3A  `3b3c4A 4T`5A5b 5c `6A6X
+ 5  Multa quoque et bello passus, dum conderet urbem
+    `1A1b `1c    2A `2T3A `3T4A   4T  `5A5b5c  `6A6X
+    Inferretque deos  Latio,  genus unde  Latinum
+    1A1T`2A2b   `2c3A `3b3c4A `4b4c `5A5b 5c`6A6X
+    Albanique patres atque altae moenia  Romae.
+    1A1T`2A2b `2c3A  3T    `4A4T `5A5b5c `6A6X
+    Musa, mihi  causas memora, quo numine  laeso
+    `1A1b `1c2A `2T3A  `3b3c4A 4T  `5A5b5c `6A6X
+    Quidue dolens regina  deum  tot uoluere casus
+    `1A1b  `1c2A  2T`3A3b `3c4A 4T  `5A5b5c `6A6X
+10  Insignem pietate   uirum, tot adire   labores
+    1A`1T2A  2b2c`3A3b `3c4A  4b  4c`5A5b 5c`6A6X
+
+Or with phonetic transcrption
+
+>>> print("\n".join(utils.txt_and_number(aen[:10], phon=True)))
+    Arma   uirumque    cano,   Troiae   qui primus   ab oris
+    `Ār.ma wi.`rum.kwe `ka.nō, `Troi.ae kwi `pri.mus ab `ō.ris
+    Italiam    fato   profugus    Lauiniaque     uenit
+    Ī.`ta.li.ã `fā.tō `pro.fu.gus Lā.`win.ja.kwe `wē.nit
+    Litora,    multum ille   et  terris   iactatus    et alto
+    `Lī.to.ra, `mul._ `til._ let `ter.ris jak.`tā.tus et `āl.to
+    Vi superum,   saeuae   memorem   Iunonis    ob iram,
+    Wī `su.per.ũ, `sae.wae `me.mo.rẽ Jū.`nō.nis ob `ī.rã,
+ 5  Multa   quoque et   bello   passus,   dum conderet    urbem
+    `Mul.ta `kwo._ kwet `bel.lō `pas.sus, dũ  `kon.de.ret `ūr.bẽ
+    Inferretque     deos   Latio,    genus   unde   Latinum
+    Īn.fer.`ret.kwe `de.ōs `La.ti.ō, `ge.nus `ūn.de La.`tī.nũ
+    Albanique     patres   atque altae     moenia    Romae.
+    Āl.bā.`nī.kwe `pa.tres āt._  `kwal.tae `moe.ni.a `Rō.mae.
+    Musa,   mihi   causas   memora,    quo numine    laeso
+    `Mū.sa, `mi.hī `kau.sas `me.mo.rā, kwo `nū.mi.ne `lae.so
+    Quidue   dolens   regina    deum  tot uoluere    casus
+    `Kwid.we `do.lens rē.`gī.na `de.ũ tot `wol.we.re `kā.sus
+10  Insignem   pietate     uirum,  tot adire    labores
+    Īn.`sin.jẽ pi.e.`tā.te `wi.rũ, tot a.`dī.re la.`bō.res
+
