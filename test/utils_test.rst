@@ -51,11 +51,11 @@ Blatting text (prints to screen)
 >>> utils.blat(utils.grep(aen_soup, 'nymphaeque'), scan=False)
 "Haec nemora indigenae Fauni Nymphaeque tenebant
 
-Or blat with scansion
+Or blat with scansion (or phonetic transcription)
 
->>> utils.blat(utils.grep(aen_soup, 'nymphaeque'), scan=True)
-"Haec nemora indigenae Fauni Nymphaeque tenebant
-1A    `1b1c_ 2A`2b2c3A `3T4A 4T`5A5b    5c`6A6X
+>>> utils.blat(aen[100])
+Scuta uirum galeasque et fortia  corpora uoluit!"
+`1A1b `1c2A 2b2c`3A   3T `4A4b4c `5A5b5c `6A6X
 
 There are more nymphs, of course...
 
@@ -70,7 +70,7 @@ Programmatically, we can also extract that text
 Also with scansion
 
 >>> utils.txt(aen[100], scan=True)
-'Scuta uirum galeasque et fortia  corpora uoluit!"\n`1A1b `1c2A 2b2c`3A_  3T `4A4b4c `5A5b5c `6A6X'
+'Scuta uirum galeasque et fortia  corpora uoluit!"\n`1A1b `1c2A 2b2c`3A   3T `4A4b4c `5A5b5c `6A6X'
 
 To just number up chunks of text there's txt_and_number
 

@@ -4,6 +4,9 @@ import re
 import numpy as np
 import pandas as pd
 from mqdq import utils
+from mqdq import rhyme
+
+DEFANCY = str.maketrans({'ü':'y', u'\u0304':None, u'\u0303':None, '`':None, '_':None})
 
 def classify_caesura(l, n, strict=False):
     
@@ -535,3 +538,12 @@ def harmony(l, n=4):
         return ''.join(res)
     except:
         raise ValueError("Error processing: %s" % l)
+
+def raw_scansion(l):
+    return [_get_syls_with_stress(w) for w in l('word')]
+
+def raw_phonetics(l):
+    return [w.pre_punct+'.'.join(w.syls)+w.post_punct for w in rhyme.syllabify_line(l)]
+
+def raw_phonemics(l):
+    return [''.join(w.syls).lower().translate(DEFANCY) for w in rhyme.syllabify_line(l)]

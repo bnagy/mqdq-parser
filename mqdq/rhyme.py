@@ -31,7 +31,7 @@ KILL_M = str.maketrans({'m':None})
 
 VU = str.maketrans({'V':'U'})
 IJ = str.maketrans({'i':'j', 'I':'J'})
-# oy appears in Juvenal
+# 'oy' appears in Juvenal
 DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ui', 'ue'] #, 'ai', 'oy', 'ea']
 RARE_DIPTHONGS = ['ai', 'oy', 'ea']
 NON_U_DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ai', 'oy', 'ea']
@@ -56,7 +56,7 @@ SCAN_HAX = {
 }
 
 PUNCT_SPLIT = re.compile(r'([%s]+)' % re.escape(string.punctuation))
-
+DEFANCY = str.maketrans({'ü':'y', u'\u0304':None, u'\u0303':None, '`':None, '_':None})
 
 class Syl(str):
 
@@ -84,7 +84,6 @@ class Word:
 	mqdq: bs4.element.Tag
 
 
-
 def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 
 	d1 = tuple("%s%s" % (d[0], d[0].capitalize()))
@@ -95,6 +94,7 @@ def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 	if re.search(d, t, flags=re.I):
 		end_indices = [i for i, x in enumerate(syls) if x.endswith(d1)]
 		for idx in end_indices:
+			
 			if len(syls) > idx+1 and syls[idx+1].startswith(d2):
 
 				# special cases:
@@ -102,7 +102,7 @@ def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 					# ea is not a 'real' Latin dipthong, but it is subject
 					# to contraction by some of the poets
 					syls[idx+1] = syls[idx][:-1] + "j" + syls[idx+1]
-				if d == 'ue' and len(syls)==idx+2 and len(syls[idx+1])==1:
+				elif d == 'ue' and len(syls)==idx+2 and len(syls[idx+1])==1:
 					# We have eg quid.u.e, so we should form
 					# the clitic 've', not the dipthong 'ue'. This
 					# will be wrong less often. This amounts to running
@@ -111,10 +111,12 @@ def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 					return _try_consonantify('u', 'v', t, t_list, syls, mqdq_slen)
 				else:
 					syls[idx+1] = syls[idx]+syls[idx+1]
+
 				syls = syls[:idx] + syls[idx+1:]
 				if len(syls) <= mqdq_slen:
 					return syls
 	return syls
+
 
 def _try_split_dipthong(d, t, t_list, syls, mqdq_slen):
 
@@ -130,8 +132,7 @@ def _try_split_dipthong(d, t, t_list, syls, mqdq_slen):
 					# don't split a u dipthong after 'q'
 					if re.search('qu', syls[idx], flags=re.I):
 						continue
-				else:
-					pre,x,post = re.split("([%s])" % d1, syls[idx])
+				pre,x,post = re.split("([%s])" % d1, syls[idx])
 			except Exception as e:
 				print(d)
 				print(d1)
@@ -143,6 +144,7 @@ def _try_split_dipthong(d, t, t_list, syls, mqdq_slen):
 				return syls
 	return syls
 
+
 def _try_unconsonantify(frm, to, t, t_list, syls, mqdq_slen):
 
 	frm_re = "[%s%s]" % (frm, frm.capitalize())
@@ -153,6 +155,7 @@ def _try_unconsonantify(frm, to, t, t_list, syls, mqdq_slen):
 		if len(syls) >= mqdq_slen:
 			return syls
 	return syls
+
 
 def _try_consonantify(frm, to, t, t_list, syls, mqdq_slen):
 
@@ -181,6 +184,7 @@ def _try_consonantify(frm, to, t, t_list, syls, mqdq_slen):
 			if len(syls) <= mqdq_slen:
 				return syls
 	return syls
+
 
 def _try_shrink(w, syls, t, t_list, mqdq_slen):
 
@@ -221,6 +225,7 @@ def _try_shrink(w, syls, t, t_list, mqdq_slen):
 
 	return syls
 
+
 def _try_grow(w, syls, t, t_list, mqdq_slen):
 
 	if len(syls)==mqdq_slen:
@@ -239,12 +244,14 @@ def _try_grow(w, syls, t, t_list, mqdq_slen):
 
 	return syls
 
+
 def _macronize_short_syl(syl):
 	if len(syl)>1 and all(x in VOWELS for x in list(syl)):
 		return syl
 
 	l = [x+COMBINING_MACRON if x in VOWELS else x for x in list(syl)]
 	return ''.join(l)
+
 
 def _syllabify_text(w, t):
 
@@ -304,12 +311,15 @@ def _syllabify_text(w, t):
 			break
 
 	if len(syls)==mqdq_slen:
-		return [Syl(s) for s in syls]
+		try:
+			return [Syl(s) for s in syls]
+		except Exception as e:
+			print(w)
+			raise e
 	else:
 		raise ValueError("Length mismatch syllabifying %s (have %s, want length %d)" % (w.text, '.'.join(syls), mqdq_slen))
 
-
-def _syllabify_word(w):
+def _punct_split(w):
 
 	# This will return an array pre_punc, syls, post_punc
 
@@ -317,18 +327,23 @@ def _syllabify_word(w):
 	# these match, eg ['', '(', 'huc', ')', '']
 	ary = PUNCT_SPLIT.split(w.text)
 	l = len(ary)
-	# Word is a dataclass, the constructor is prepunct, syl_array, postpunct
 	if l == 5:
-		return Word(ary[1], _syllabify_text(w,ary[2]), ary[3], w)
+		return [ary[1], ary[2], ary[3]]
 	elif l == 3:
 		# one punctuation
 		if len(ary[0])==0:
 			# at the start
-			return Word(ary[1], _syllabify_text(w,ary[2]), '', w)
+			return [ary[1], ary[2], '']
 		else:
-			return Word('', _syllabify_text(w,ary[0]), ary[1], w)
+			return ['', ary[0], ary[1]]
 	else:
-		return Word('', _syllabify_text(w,ary[0]), '', w)
+		return ['', ary[0], '']
+
+def _syllabify_word(w):
+
+	# Word is a dataclass, the constructor is prepunct, syl_array, postpunct
+	pre,txt,post = _punct_split(w)
+	return Word(pre, _syllabify_text(w,txt), post, w)
 
 
 def _elide(s1, s2):
@@ -352,7 +367,6 @@ def _elide(s1, s2):
 		s2 = s2[0].lower() + s2[1:]
 		s1 = s1.capitalize()
 	return Syl(s1 + s2)
-
 
 
 def _phonetify(w) -> Word:
@@ -406,14 +420,26 @@ def _phonetify(w) -> Word:
 		# across syllable boundaries. Can't change 'ph' to 'f' because it's
 		# incorrect (Allen, Vox Latina, 26)
 		#
-		# I am leaving the 'h'. Arguably wrong. Are p/pʰ phonemically different in Latin?
+		# I am removing the 'h'. Arguably wrong. Are p/pʰ phonemically different in Latin?
 		# (pʰ is really only in Greek imports...)
-		if len(w.syls) > idx+1 and w.syls[idx].endswith('p') and w.syls[idx+1].startswith('h'):
+		#
+		# I'm also resolving 'rh' and 'rrh' which were introduced to transcribe A.Gk.ῤ and ῤῥ
+		# which were 'voiceless r'. Allen (33) doubts if these were ever pronounced unvoiced.
+		if len(w.syls) > idx+1 and w.syls[idx][-1] in 'pkr' and w.syls[idx+1].startswith('h'):	
+			# we don't include 't' here because posthabita is post.ha.bi.ta (aspiration on the 'a')
+			# TODO: this means eg Teuthra is still not correct (Teut.hra, want Teut.ra) but it's
+			# more correct this way than de-aspirating a ton of vowels
+			w.syls[idx+1] = w.syls[idx][-1] + w.syls[idx+1][1:]
 			w.syls[idx] = w.syls[idx][:-1]
-			w.syls[idx+1] = 'p' + w.syls[idx+1]
-		if len(w.syls) > idx+1 and w.syls[idx].endswith('k') and w.syls[idx+1].startswith('h'):
+
+		# resolve aspirated consonants at the start and end of syllables
+		if re.match('[pkrt]h', w.syls[idx], flags=re.I):
+			w.syls[idx] = w.syls[idx][0] + w.syls[idx][2:]
+		if re.search('[pkrt]h$', w.syls[idx], flags=re.I):
 			w.syls[idx] = w.syls[idx][:-1]
-			w.syls[idx+1] = 'k' + w.syls[idx+1]
+
+		# this handling is still not perfect, but hopefully the remaining errors are
+		# confined to irritating Greek names and loanwords.
 
 	for idx, s_syl in enumerate(scan_syls):
 		if idx+1 > slen:
@@ -428,18 +454,19 @@ def _phonetify(w) -> Word:
 	if '`' in sarr:
 		w.syls[sarr.index('`')] = '`' + w.syls[sarr.index('`')]
 
-	# ensure that the syls are turned into the fancy subclass, in case they got
-	# made into normal strings while messing around above.
-
 	if len(w.syls)>0 and w.syls[-1][-1] in 'mM':
 		# elision has taken place by now, so final m does not
 		# precede a vowel, so it should be dropped.
 		w.syls[-1] = w.syls[-1][:-1]
+		# if what's left ends with a macron, it was a vowel
+		# that now needs to be nasalised (tilde) instead
 		if w.syls[-1].endswith(COMBINING_MACRON):
 			w.syls[-1] = w.syls[-1][:-1]
 		if w.syls[-1][-1] in VOWELS:
 			w.syls[-1] = w.syls[-1] + COMBINING_TILDE
 
+	# ensure that the syls are turned into the fancy subclass, in case they got
+	# made into normal strings while messing around above.
 	w.syls = [Syl(s) for s in w.syls]
 
 	return w
@@ -518,6 +545,7 @@ CONS_CLOSE = {
 'x': UNV_STOP | FRIC
 }
 
+
 def _syl_rhyme(s1, s2):
 	if s1.nucleus=='' or s2.nucleus=='':
 		return 0
@@ -573,6 +601,7 @@ def _syl_rhyme(s1, s2):
 		print(s2)
 		raise e
 
+
 def score(l1, l2):
 
 	w1, w2 = syllabify_line(l1)[-1], syllabify_line(l2)[-1]
@@ -599,15 +628,17 @@ def score(l1, l2):
 	score = _syl_rhyme(w1.syls[s_idx1], w2.syls[s_idx2])
 
 	# Now the rhyme on the remainder. In Latin, in theory,
-	# the final syllable is not stressed, so tghere should be
+	# the final syllable is not stressed, so there should be
 	# at least one extra, but there _are_ exceptions.
 
 	# For uneven lengths, if we have Xx vs Yyy then compare 
-	# the two final syllables, slurring over like Xx vs Y(y)y
+	# the two final syllables, slurring over like 
+	# UN.der.ground // COM.pound
 	
 	if len(w1.syls[s_idx1:])>0 and len(w2.syls[s_idx2:])>0:
 		score += _syl_rhyme(w1.syls[-1], w2.syls[-1])
 	return score
+
 
 def combined_score(ll):
 
@@ -616,6 +647,7 @@ def combined_score(ll):
 
 	scores = [score(a,b) for a,b in combinations(ll,2)]
 	return sum(scores)/len(scores)
+
 
 def find_end_rhymes(ll, gather_thresh=1.4, global_thresh=1.65, min_lines=4):
 
@@ -640,6 +672,7 @@ def find_end_rhymes(ll, gather_thresh=1.4, global_thresh=1.65, min_lines=4):
 	            continue
 	return final_set
 
+
 def find_abab(ll, thresh=1.65):
 
 	final_set = []
@@ -663,6 +696,7 @@ def find_abab(ll, thresh=1.65):
 			idx+=1
 
 	return final_set
+
 
 def find_abba(ll, thresh=1.65):
 
