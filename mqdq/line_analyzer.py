@@ -1,4 +1,4 @@
-from bs4 import BeautifulSoup
+import bs4
 from collections import Counter
 import re
 import numpy as np
@@ -70,9 +70,12 @@ def elision_after_foot(n, l):
     except:
         raise ValueError("Can't handle this: %s" % l)
 
-def metrical_nucleus(l, strict=False):
+def metrical_nucleus(l, strict=False, start=2, end=4):
 
-    """Classify the caesurae in the second, third and fourth feet 
+    """
+    DEPRECATED: WILL VANISH IN FUTURE VERSIONS. USE: caesurae
+
+    Classify the caesurae in the second, third and fourth feet 
     (sometimes called 1.5, 2.5, 3.5).
 
     Args:
@@ -83,12 +86,9 @@ def metrical_nucleus(l, strict=False):
         (string): A three element string, made up of the following:
                   Q, -, W, or S (Quasi, None, Weak, Strong)
     """
+    return ''.join(map(lambda f: classify_caesura(l,f,strict), range(start,end+1)))
 
-    return ''.join([
-        classify_caesura(l,2,strict),
-        classify_caesura(l,3,strict),
-        classify_caesura(l,4,strict),
-    ])
+caesurae = metrical_nucleus
 
 def has_3rd_foot_caes(l, strict=True):
     
@@ -118,30 +118,51 @@ def has_3rd_foot_caes(l, strict=True):
     except:
         raise ValueError("Can't handle this: %s" % l)
 
-def diaer_after_first(l):
+def diaer_after_foot(n, l):
 
-    """Determine whether a line has a diaeresis after the first foot.
+    """Determine whether a line contains a bucolic diaeresis.
     
     Args:
+        n (int): Foot to check (1 to 5)
         l (bs4 <line>): Line to check
 
     Returns:
         (bool): The result
     """
+    
+    if n not in range(1,6):
+        raise ValueError("Foot to check must be between 1 and 5")
 
     if l['pattern'] == 'corrupt':
         raise ValueError("Can't operate on a corrupt line!")
-    
-    try:
-        for w in l('word'):
-            if re.search('1[Tc]$', w['sy']) and w.has_attr('wb') and w['wb']=='DI':
-                return True
-            if re.search('2', w['sy']):
-                break
-        return False
 
+    try:
+        # Here's an example line:
+        # <line name="52" metre="H" pattern="DSSD">
+        #   <word sy="1A1b1c2A" wb="CM">Oceanus</word>
+        #   <word sy="2T3A" wb="CM">fontes</word>
+        #   <word sy="3T4A4b4c" wb="DI">torrentibus</word>
+        #   <word sy="5A5b5c" wb="DI">ingruit</word>
+        #   <word sy="6A6X">undis.</word>
+        # </line>
+        
+        # So, if the word has a 'DI' word boundary, and its
+        # syllables _end_ with the thesis of the given foot
+        # (4T for spondee, 4c for dactyl) then we should be done
+        for w in l('word'):
+            if re.search('%d[cT]$'%n, w['sy']) and w.has_attr('wb') and w['wb']=='DI':
+                return True
+        return False
     except:
-        raise ValueError("Can't handle this: %s" % l)
+        raise ValueError("Error processing: %s" % line)
+
+def diaereses(l, start=1, end=5):
+    return ''.join(
+        map(
+            lambda f: 'T' if diaer_after_foot(f,l) else 'F',
+            range(start, end+1)
+            )
+        )
 
 def has_bd(line):
     
@@ -154,29 +175,7 @@ def has_bd(line):
         (bool): The result
     """
     
-    if line['pattern'] == 'corrupt':
-        raise ValueError("Can't operate on a corrupt line!")
-
-    try:
-        # We're looking for a diaeresis after the fourth foot.
-        # Here's an example line (without bucolic diaeresis):
-        # <line name="52" metre="H" pattern="DSSD">
-        #   <word sy="1A1b1c2A" wb="CM">Oceanus</word>
-        #   <word sy="2T3A" wb="CM">fontes</word>
-        #   <word sy="3T4A4b4c" wb="DI">torrentibus</word>
-        #   <word sy="5A5b5c" wb="DI">ingruit</word>
-        #   <word sy="6A6X">undis.</word>
-        # </line>
-        
-        # So, if the word has a 'DI' word boundary, and its
-        # syllables _end_ with the thesis of the fourth foot
-        # (4T for spondee, 4c for dactyl) then we should be done
-        for w in line('word'):
-            if re.search('4[cT]$', w['sy']) and w.has_attr('wb') and w['wb']=='DI':
-                return True
-        return False
-    except:
-        raise ValueError("Error processing: %s" % line)
+    return diaer_after_foot(4,line)
 
 def _get_syls_with_stress(w):
     if w['sy']=='':
@@ -321,7 +320,10 @@ def conflict_in_foot(n, l):
 
 def predictors_by_foot(l):
 
-    """Return a list of the predictors for this line (by foot).
+    """
+    DEPRECATED: NOTHING USES THIS NOW
+
+    Return a list of the predictors for this line (by foot).
     The things we know about are:
     - Foot length (S or D)
     - Foot ictus harmony (C or H)
@@ -360,7 +362,10 @@ def predictors_by_foot(l):
 
 def predictors_by_feature(l):
 
-    """Return a list of predictors for this line (by feature).
+    """
+    DEPRECATED: NOTHING USES THIS NOW
+
+    Return a list of predictors for this line (by feature).
     
     The returned strings are:
     - Quantity of each the first four feet (eg "SSDS")
@@ -425,15 +430,35 @@ def _binary_features(l):
               [
                   [lambda l: l['pattern'][:4], 'S'],
                   [lambda l: harmony(l), 'C'],
-                  [lambda l: 'T' if has_bd(l) else 'F', 'T'],
-                  [lambda l: metrical_nucleus(l), 'S'],
-                  [lambda l: metrical_nucleus(l), 'W']
+                  [lambda l: diaereses(l, start=1, end=4), 'T'],
+                  [lambda l: caesurae(l, start=1, end=4), 'S'],
+                  [lambda l: caesurae(l, start=1, end=4), 'W']
               ])
 
-BINARY_FEATURES = ['F1S', 'F2S', 'F3S', 'F4S', 'F1C', 'F2C', 'F3C', 'F4C', 'BD', 'F2SC', 'F3SC', 'F4SC', 'F2WC', 'F3WC', 'F4WC']
-ALL_FEATURES = ['F1S', 'F2S', 'F3S', 'F4S', 'F1C', 'F2C', 'F3C', 'F4C', 'BD', 'F2SC', 'F3SC', 'F4SC', 'F2WC', 'F3WC', 'F4WC', 'SYN']
-BEST_FEATURES = ['F1S', 'SYN', 'F4S', 'F1C', 'F3SC', 'F3WC', 'F3C', 'F4C', 'F3S', 'F2C', 'F4SC']
-def chunked_features(ll, n, feats=ALL_FEATURES):
+BINARY_FEATURES = [
+    '1SP',
+    '2SP',
+    '3SP',
+    '4SP',
+    '1CF',
+    '2CF',
+    '3CF',
+    '4CF',
+    '1DI',
+    '2DI',
+    '3DI',
+    '4DI',
+    '1SC',
+    '2SC',
+    '3SC',
+    '4SC',
+    '1WC',
+    '2WC',
+    '3WC',
+    '4WC',
+]
+ALL_FEATURES = BINARY_FEATURES + ['ELC']
+def chunked_features(ll, n=1, feats=ALL_FEATURES):
 
     """Take a set of binary features per line, and return a chunked average.
 
@@ -461,9 +486,17 @@ def chunked_features(ll, n, feats=ALL_FEATURES):
                             matching the predefined features
     """
 
+    # if they give us just one line instead of wrapping it
+    # in a list as they should then be nice to them
+    if ll.__class__ == bs4.element.Tag:
+        ll = [ll]
+
+    if n > len(ll):
+        raise ValueError("Chunk size must be <= number of lines")
+
     df = pd.DataFrame(map(lambda l: _binary_features(l), ll), columns=BINARY_FEATURES)
-    if 'SYN' in feats:
-        df['SYN'] = [elision_count(l) for l in ll]
+    if 'ELC' in feats:
+        df['ELC'] = [elision_count(l) for l in ll]
     return _chunk_mean(df[feats], n)
 
 def elision_count(l):
@@ -497,7 +530,7 @@ def distribution(ll, feats=ALL_FEATURES):
                             matching the predefined features
     """
 
-    return chunked_features(ll, 1, feats)
+    return chunked_features(ll, n=1, feats=feats)
 
 def centroid(ll, feats=ALL_FEATURES):
 
@@ -518,7 +551,7 @@ def harmony(l, n=4):
     two feet are almost always in harmony)
     
     Args:
-        l (bs4 <line): Line to check
+        l (bs4 <line>): Line to check
 
     Returns:
         (string): String of four characters (Conflict or Harmony) 'CHHC'
