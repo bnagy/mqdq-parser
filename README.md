@@ -19,6 +19,7 @@ There are some tests in [test/](test), which are more or less human-readable ipy
 ## License & Acknowledgements
 
 Code: BSD style, see the [LICENSE](LICENSE.txt)
+
 The XML files used in the `hexameter_corpus` method are (c) [Pedecerto](http://www.pedecerto.eu), licensed (by them) under CC-BY-NC-ND.
 
 ## Contributing
