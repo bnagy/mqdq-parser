@@ -7,6 +7,9 @@ from mqdq import utils
 from mqdq import rhyme
 from mqdq import line_analyzer as la
 import string
+import pathlib
+from tqdm import tqdm as tqdm_base
+import sys
 
 WORKS = [
 	('Vergil', 'Aeneid', 'VERG-aene.xml'),
@@ -17,12 +20,23 @@ WORKS = [
 	('Juvenal', 'Satires', 'IVV-satu.xml'),
 ]
 
+# this is hax to stop tqdm from going crazy sometimes
+# when a Jupyter notebook is interrupted and an old
+# instance goes stale.
+# orig: https://github.com/tqdm/tqdm/issues/375#issuecomment-522182387
+def tqdm(*args, **kwargs):
+    if hasattr(tqdm_base, '_instances'):
+        for instance in list(tqdm_base._instances):
+            tqdm_base._decr_instances(instance)
+    return tqdm_base(*args, **kwargs)
+
 def geezit_corpus():
 
 	df = pd.DataFrame()
 
-	for auth,title,fn in WORKS:
+	for auth,title,fn in tqdm(WORKS, file=sys.stdout, ncols=80):
 		
+		fn = pathlib.Path(__file__).parent / fn
 		with open(fn) as fh:
 			soup = BeautifulSoup(fh,"xml")
 
@@ -58,4 +72,22 @@ def geezit_corpus():
 
 	return df
 
+# TODO OK, maybe just this once I could refactor this as an object
+def vectorize_prosody(corp, by='Author'):
+	vecs = la.chunked_features(corp['XML'], n=1)
+	vecs[by] = corp[by]
+	return vecs
 
+def rechunk(df, n, by='Author', rand=False, seed=None, feats=la.ALL_FEATURES):
+	chunked = []
+	rng = np.random.RandomState(seed=seed)
+	for idx, subdf in df.groupby(by, sort=False):
+		if rand:
+			subdf = subdf.sample(frac=1, random_state=rng)
+		chunks = la._chunk_mean(subdf, n=n)
+		chunks[by]=subdf.iloc[0][by]
+		chunked.append(chunks)
+
+	df = pd.concat(chunked)
+	df = df.reset_index(drop=True)
+	return df
