@@ -59,12 +59,12 @@ def explain(x, dist):
 
     return (v, m[0], p)
 
-def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None):
+def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None, rd=None):
 
     """Take a sample and a distribution, and test the Mahalanobis distance
     of the sample against a randomly sampled distribution drawn from dist.
 
-    The ideal chunk size is tricky to determine theoretically, but you can
+    The ideal dist size is tricky to determine theoretically, but you can
     just do empirical tests and see when your results start to stabilise.
 
 
@@ -88,12 +88,16 @@ def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=
     if not chunksz:
         chunksz = len(s)
 
-    rand_dist = _create_sampled_dist(d, chunksz, n, seed)
-    samp_centroid = la._chunk_mean(samp, len(samp))
+    if rd is None:
+        rand_dist = _create_sampled_dist(d, chunksz, n, seed)
+    else:   
+        rand_dist = rd[feats]
+
+    samp_centroid = la._chunk_mean(s, len(s))
     v,m,p = explain(samp_centroid, rand_dist)
     return( m, p, v.mean().sort_values(ascending=False) )
 
-def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None):
+def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None, rd=None):
 
     """Print a quick comparison of a sample against a distribution,
     using chunk_explain (cf).
@@ -134,7 +138,7 @@ def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=N
     """
 
 
-    m,p,f = chunk_explain(samp, dist, n, chunksz, feats, seed=seed)
+    m,p,f = chunk_explain(samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd)
     samp_cent = la._chunk_mean(samp,len(samp))
     dist_cent = la._chunk_mean(dist,len(dist))
     print('-'*30)
@@ -142,8 +146,45 @@ def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=N
     print("Feat \t Score \t Samp% \t Dist%")
     print('-'*30)
     for feat,score in f.iteritems():
-        print("%s \t %.2f \t %.2f \t %.2f" % (feat, score, samp_cent[feat]*100, dist_cent[feat]*100))
+        print("%s   %6.2f    %5.2f    %5.2f" % (feat, score, samp_cent[feat]*100, dist_cent[feat]*100))
     print('-'*30)
+
+def _compare_latex(
+    lines,
+    dist,
+    n=5000,
+    chunksz=None,
+    feats=la.ALL_FEATURES,
+    seed=None,
+    rd=None,
+    soup=None):
+
+    """Creates a LaTeX table with results similar to lazy_compare
+    """
+
+    preamble=r"""
+\begin{tabular}{ crcc }
+\toprule
+\multicolumn{2}{c}{Book Ref.} & $M^{2}$ & \multicolumn{1}{c}{\textit{p}-value}\\
+"""
+    samp = la.distribution(lines)
+    m,p,f = chunk_explain(samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd)
+    samp_cent = la._chunk_mean(samp,len(samp))
+    dist_cent = la._chunk_mean(dist,len(dist))
+    br = utils.bookrange(lines, soup)
+    print(preamble, end='')
+    if p < 0.0001:
+        p = "$<$\\,0.0001"
+    else:
+        p = "%.4f" % p
+    print("\\multicolumn{2}{c}{%s} & %.2f & %s \\\\" % (br, m, p))
+    print("\\midrule")
+    print("Feat & Score & Samp.\\,\\% & Mean\\,\\% \\\\")
+    print("\\midrule")
+    for feat,score in f.iteritems():
+        print("\\texttt{%s} & %6.2f & %5.2f & %5.2f \\\\" % (feat, score, samp_cent[feat]*100, dist_cent[feat]*100))
+    print("\\bottomrule")
+    print(r"""\end{tabular}""")
 
 def _create_sampled_dist(dist, chunksz, distsz, seed=None):
 
