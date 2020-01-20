@@ -66,7 +66,7 @@ def blatsave(ll, fn, scan=True, phon=False, number_with=None):
         phon (bool, default=False): Include phonetic transcription
         number_with (bs4 soup): If provided, text will be numbered by finding the lines
                                 in that bs4 object (WARNING! Can be slow!):
-                                8:196> Caede tepebat humus, foribusque affixa  superbis
+                                8:196> Caede tepebat humus, fo
                                        1A'1b 1c2A'2b 2c'3A  3b3c4A'_   4T5A'5b 5c6A'6X
 
         Returns:
@@ -223,6 +223,16 @@ def bookref(l, soup):
     if not b:
         return None
     return("%2s:%-3d" % (b, int(l['name'])))
+
+def bookrange(ll, soup):
+    ll = list(ll)
+    b1,l1 = bookref(ll[0], soup).split(':')
+    b2, l2 = bookref(ll[-1], soup).split(':')
+    if b2==b1:
+        b2=''
+    else:
+        b2 = b2+':'
+    return '--'.join([x.strip() for x in ["%s:%s" % (b1,l1), "%s%s" % (b2,l2)]])
 
 def clean(ll):
 
