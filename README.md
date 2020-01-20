@@ -8,6 +8,8 @@
 
 HOPEFULLY, you can just do pip install MQDQParser and it will all work. Open issues if not.
 
+Latest pypi version: 0.2.3
+
 ## Usage
 
 This is all very alpha. When I work out how to autogenerate docs, you could use those. For now, read the code, sorry. Caveat - I work mainly with hexameters, at the moment, so I'm not sure if some features will break on elegiacs.
