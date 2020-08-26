@@ -9,6 +9,7 @@ from typing import List, Any
 import bs4
 from bs4 import BeautifulSoup
 from itertools import combinations
+from mqdq.rhyme_classes import Syl, Word, Line
 
 S = Syllabifier()
 VOWELS = "aeiouyAEIOUY"
@@ -34,8 +35,7 @@ IJ = str.maketrans({'i':'j', 'I':'J'})
 # 'oy' appears in Juvenal
 DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ui', 'ue'] #, 'ai', 'oy', 'ea']
 RARE_DIPTHONGS = ['ai', 'oy', 'ea']
-NON_U_DIPTHONGS = ['ae', 'oi', 'oe', 'eu', 'eo', 'ei', 'au', 'ai', 'oy', 'ea']
-U_DIPTHONGS = ['ui', 'ue']
+
 DEPUNCT = str.maketrans('', '', string.punctuation)
 # These are either contracted sometimes, in poetry, or
 # scanned weirdly in major works.
@@ -57,32 +57,6 @@ SCAN_HAX = {
 
 PUNCT_SPLIT = re.compile(r'([%s]+)' % re.escape(string.punctuation))
 DEFANCY = str.maketrans({'ü':'y', u'\u0304':None, u'\u0303':None, '`':None, '_':None})
-
-class Syl(str):
-
-	def __init__(self, s, **kwargs):
-		if s != '_':
-			self.stressed = (s[0]=='`') # bool
-			try:
-				if self.stressed:
-					self.onset,self.nucleus,self.coda = ONC.split(s[1:])
-				else:
-					self.onset,self.nucleus,self.coda = ONC.split(s)
-			except Exception as e:
-				raise ValueError("Couldn't split %s: %s" % (s, e))
-		else:
-			self.onset,self.nucleus,self.coda = '','',''
-			self.stressed = False
-		super().__init__(**kwargs)
-
-
-@dataclass
-class Word:
-	pre_punct: str
-	syls: List[Syl]
-	post_punct: str
-	mqdq: bs4.element.Tag
-
 
 def _try_form_dipthong(d, t, t_list, syls, mqdq_slen):
 
@@ -471,8 +445,7 @@ def _phonetify(w) -> Word:
 
 	return w
 
-
-def syllabify_line(l) -> List[Word]:
+def syllabify_line(l) -> Line:
 
 	try:
 		line = [_syllabify_word(w) for w in l('word')]
@@ -505,7 +478,7 @@ def syllabify_line(l) -> List[Word]:
 				w.syls[0] = '_'
 				
 	# now do phonetics at the word level
-	return [_phonetify(w) for w in line]
+	return Line([_phonetify(w) for w in line], l['metre'])
 
 NUCLEUS_SCORES = {
 'i':{'i':1,'e':0.7, 'a':0.42, 'o':0.42, 'u':0.4, 'ü':0.5},
@@ -525,10 +498,11 @@ VELAR = {'g','k'}
 BILAB = {'p','b','w'}
 SON = {'n','m','l','r'}
 NAS = {'n', 'm'}
+APPROX = {'j', 'w', 'l', 'r'}
 CONT = SON | NAS | FRIC | {''}
 
 CONS_CLOSE = {
-'' : FRIC | UNV_STOP | SON,
+'' : FRIC | UNV_STOP | NAS | {''},
 't': ALVEOLAR | STOP,
 'd': STOP,
 's': FRIC | (UNV_STOP - BILAB),
@@ -542,56 +516,75 @@ CONS_CLOSE = {
 'l': SON,
 'b': (V_STOP | BILAB) - VELAR, # b--g seems too far away
 'p': STOP - VELAR,
-'x': UNV_STOP | FRIC
+'x': UNV_STOP | FRIC,
+'w': BILAB,
+'j': APPROX
 }
-
 
 def _syl_rhyme(s1, s2):
 	if s1.nucleus=='' or s2.nucleus=='':
 		return 0
 	try:
 		# Basic score for the final vowel
-		nuc1 = s1.nucleus.translate(DEMACRON)[-1].lower()
-		nuc2 = s2.nucleus.translate(DEMACRON)[-1].lower()
-		score = NUCLEUS_SCORES[nuc1][nuc2]
+		nuc1 = s1.nucleus.translate(DEMACRON).lower()
+		nuc2 = s2.nucleus.translate(DEMACRON).lower()
+		v1 = s1.main_vowel
+		v2 = s2.main_vowel
+		score = NUCLEUS_SCORES[v1][v2]
+		# print("Basic score for %s %s: %.2f" % (s1,s2,score))
 
 		# One's a dipthong and one isn't
 		if len(nuc1) != len(nuc2):
 			score *= 0.7
-		elif nuc1[0]!=nuc2[0] and score==1:
-			# dipthongs but first vowel not equal
+		elif v1==v2 and (nuc1 != nuc2):
+			# two dipthongs but first vowel not equal
 			score *= 0.7
 
-		# apply bonuses or penalties for the coda
-		try:
-			last1 = s1.coda[-1].lower()
-		except IndexError:
-			last1 = ''
+		if (nuc1 == nuc2):
+			# mismatched nasalisation:
+			# if 1 (but not 0 or 2) of the nuclei is nasalised apply a small penalty
+			if len([x for x in [s1.nucleus, s2.nucleus] if COMBINING_TILDE in x])==1:
+				score *= 0.9
+
+		# print("Dipthongs and nasalisation: %.2f" % score)
+		# now apply bonuses or penalties for the coda
+		last1 = s1.coda[-1:].lower()
+		last2 = s2.coda[-1:].lower()
 
 		try:
-			last2 = s2.coda[-1].lower()
-		except IndexError:
-			last2 = ''
-
-		# print("Nucleus: %f" % score)
-
-		if len(s1.coda) + len(s2.coda) > 2:
-			# at least one cluster
-			if s1.coda == s2.coda:
-				score *= 1.3
+			# Possible penalty for mismatched coda
+			if s1.coda==s2.coda:
+				score *= 1.1				
+			elif last2 in CONS_CLOSE[last1] or last1 in CONS_CLOSE[last2]:
+				score *= 0.95
 			else:
-				score *= 0.6 
-		elif s1.coda==s2.coda:
-			score *= 1.3
-		elif last2 in CONS_CLOSE[last1] or last1 in CONS_CLOSE[last2]:
-			score *= 0.9
-		else:
-			score *= 0.6
+				score *= 0.8
+		except KeyError:
+			score = score
 
-		# Perfect onset match gives a bonus
-		if s1.onset==s2.onset and s1.onset != '':
-			score *= 1.3
+		# print("Coda matches: %.2f" % score)
 
+		first1 = s1.onset[0:1].lower()
+		first2 = s2.onset[0:1].lower()
+
+		try:
+			# Perfect or close onset match gives a bonus
+			if s1.onset==s2.onset and s1.onset != '':
+				score *= 1.1
+			elif first1 == '' or first2 == '':
+				# not equal. null onset is not a bonus when similar
+				# (but it is when in the coda)
+				score *= 0.9
+			elif len(s1.onset) != len(s2.onset):
+				score *= 0.9
+			elif first2 in CONS_CLOSE[first1] or first1 in CONS_CLOSE[first2]:
+				score *= 1.0
+			else:
+				score *= 0.9
+		except KeyError:
+			score = score
+
+		# print("Onset matches: %.2f" % score)
 		if score > 1:
 			score = 1
 		# print(score)
@@ -601,115 +594,263 @@ def _syl_rhyme(s1, s2):
 		print(s2)
 		raise e
 
+def _word_rhyme_debug(w1, w2) -> (float, float, float):
 
-def score(l1, l2):
+	# syls _might_ be empty, if the word is 'est' and it got eaten
+	# by the previous word (prodelision)
+	if len(w1.syls)==0 or len(w2.syls)==0:
+		return 0, 0, 0
 
-	w1, w2 = syllabify_line(l1)[-1], syllabify_line(l2)[-1]
-	#print("%s -- %s" % (''.join(w1.syls),''.join(w2.syls)))
-	try:
-		s_idx1 = next(i for i,v in enumerate(w1.syls) if v.stressed)
-	except StopIteration:
-		s_idx1 = 0
-	except Exception as e:
-		print(w1.syls)
-		print(w2.syls)
-		raise e
-
-	try:
-		s_idx2 = next(i for i,v in enumerate(w2.syls) if v.stressed)
-	except StopIteration:
-		s_idx2 = 0
-	except Exception as e:
-		print(w1.syls)
-		print(w2.syls)
-		raise e
+	if len(w1.syls)==1 and len(w2.syls)==1:
+		s = _syl_rhyme(w1.syls[0], w2.syls[0])
+		return s*2, s, s 
 
 	# calculate the rhyme score on the stressed syllable
-	score = _syl_rhyme(w1.syls[s_idx1], w2.syls[s_idx2])
+	stress_score = _syl_rhyme(w1.stressed_syllable, w2.stressed_syllable)
+	score = stress_score
 
 	# Now the rhyme on the remainder. In Latin, in theory,
-	# the final syllable is not stressed, so there should be
+	# the final syllable is never stressed, so there should be
 	# at least one extra, but there _are_ exceptions.
 
 	# For uneven lengths, if we have Xx vs Yyy then compare 
 	# the two final syllables, slurring over like 
 	# UN.der.ground // COM.pound
-	
-	if len(w1.syls[s_idx1:])>0 and len(w2.syls[s_idx2:])>0:
-		score += _syl_rhyme(w1.syls[-1], w2.syls[-1])
+	coda_score = 0
+
+	if len(w1.post_stress)>0 and len(w2.post_stress)>0:
+		# this inherently punishes words that are single syllable
+		# and (very very few) words with final syllable stress
+		# and that is on purpose.
+		coda_score = _syl_rhyme(w1.syls[-1], w2.syls[-1])
+
+		#bump up really good final matches
+		if coda_score >= 0.7:
+			coda_score *= 1.5
+
+		# apply a small penalty for interstitial syllables between
+		# stressed and final if there's a length mismatch
+		if len(w1.post_stress) + len(w2.post_stress) == 3:
+			# a 1 and a 2. This will be 99% of the cases. If it's
+			# not this then something weird is happening and the
+			# rest of the logic here might break.
+			longer = max(w1.post_stress, w2.post_stress, key=len)
+			# mid-low vowels (e,a,o) get pronounced as a schwa in the interstitial syllable
+			# but high ones (i,u,ü) sound more obtrusive to me.
+			if len(longer[1].nucleus.translate(DEMACRON).lower()) > 1 or longer[1].main_vowel in 'iuü':
+				coda_score *= 0.8
+			else:
+				coda_score *= 0.9
+
+
+		score += coda_score
+
+	return score, stress_score, coda_score
+
+def word_rhyme(w1, w2) -> (float):
+
+	# syls _might_ be empty, if the word is 'est' and it got eaten
+	# by the previous word (prodelision)
+	if len(w1.syls)==0 or len(w2.syls)==0:
+		return 0
+
+	if len(w1.syls)==1 and len(w2.syls)==1:
+		s = _syl_rhyme(w1.syls[0], w2.syls[0])
+		return s*2
+
+	# calculate the rhyme score on the stressed syllable
+	stress_score = _syl_rhyme(w1.stressed_syllable, w2.stressed_syllable)
+	score = stress_score
+
+	# Now the rhyme on the remainder. In Latin, in theory,
+	# the final syllable is never stressed, so there should be
+	# at least one extra, but there _are_ exceptions.
+
+	# For uneven lengths, if we have Xx vs Yyy then compare 
+	# the two final syllables, slurring over like 
+	# UN.der.ground // COM.pound
+	coda_score = 0
+
+	if len(w1.post_stress)>0 and len(w2.post_stress)>0:
+		# this inherently punishes words that are single syllable
+		# and (very very few) words with final syllable stress
+		# and that is on purpose.
+		coda_score = _syl_rhyme(w1.syls[-1], w2.syls[-1])
+
+		#bump up really good final matches
+		if coda_score >= 0.7:
+			coda_score *= 1.5
+
+		# apply a small penalty for interstitial syllables between
+		# stressed and final if there's a length mismatch
+		if len(w1.post_stress) + len(w2.post_stress) == 3:
+			# a 1 and a 2. This will be 99% of the cases. If it's
+			# not this then something weird is happening and the
+			# rest of the logic here might break.
+			longer = max(w1.post_stress, w2.post_stress, key=len)
+			# mid-low vowels (e,a,o) get pronounced as a schwa in the interstitial syllable
+			# but high ones (i,u,ü) sound more obtrusive to me.
+			if len(longer[1].nucleus.translate(DEMACRON).lower()) > 1 or longer[1].main_vowel in 'iuü':
+				coda_score *= 0.8
+			else:
+				coda_score *= 0.9
+
+		score += coda_score
+
 	return score
 
+def _rhyme_and_recolor(w1, w2, thresh=1.6):
+    
+    score = word_rhyme(w1, w2)
+    if score >= thresh:
+        if score > w1.best_match:
+            w1.color = w2.color
+            w1.best_match = score
+        if score > w2.best_match:
+            #print("Recoloring %s from %s" % (w2.syls, w1.syls))
+            w1.color = w1.get_color()
+            w1.best_match = score
+            w2.color = w1.color
+            w2.best_match = score
+        #print()
 
-def combined_score(ll):
+def _stash_prodelision(l):
+    removed = []
+    for x, w in enumerate(l):
+        if w.syls == ['_']:
+            removed.append((x,w))
+    if len(removed)>0:
+        for k,(x,_) in enumerate(removed):
+            del l[x-k]
+    return removed
 
-	# the combined score of a set (for now) is just the
-	# mean of the pairwise scores.
+def _restore_prodelision(l,removed):
+    for i,(x,w) in enumerate(removed):
+        l.insert(x+i,w)
+        l[x].color = l[x-1].color
 
-	scores = [score(a,b) for a,b in combinations(ll,2)]
-	return sum(scores)/len(scores)
+def score_colorlines(ll):
+    total_score = 0
+    total_colored = 0
+    end_lights = 0
+    for l in ll:
+        if l[-1].color:
+            end_lights += 1
+        for w in l:
+            if w.color:
+                total_score += w.best_match
+                total_colored += 1
+    if total_colored > 0:
+        return total_score/total_colored, total_colored, end_lights
+    return 0, 0, 0
+
+def colorize(ll, thresh=1.7):
+    
+    colorlines = [syllabify_line(l) for l in ll]
+    for i, this_l in enumerate(colorlines):
+    	# remove words that have vanished due to prodelision
+    	# so they don't mess with the position of words in
+    	# the line
+        r1 = _stash_prodelision(this_l)
+        for j, other_l in enumerate(colorlines):
+            r2 = _stash_prodelision(other_l)
+            # midword vs other midwords and final word of this line
+            if this_l.midword:
+                if other_l.midword and abs(i-j) == 2:
+                    _rhyme_and_recolor(this_l.midword, other_l.midword, thresh)
+                if i==j:    
+                    _rhyme_and_recolor(this_l.midword, other_l[-1], thresh)
+            
+            # antepenults vs antepentults if they exist
+            if this_l.antepenult and other_l.antepenult and i != j and abs(i-j)<=3:
+                _rhyme_and_recolor(this_l.antepenult, other_l.antepenult, thresh)
+    
+            # now penult vs penults
+            if i != j and abs(i-j)<=3:
+                _rhyme_and_recolor(this_l[-2], other_l[-2], thresh)
+
+            # and ends vs ends
+            if i != j and abs(i-j)<=3:
+                _rhyme_and_recolor(this_l[-1], other_l[-1], thresh)
+             # as we restore the 'lost' words they will now get coloured according
+             # to the word before (eg 'puella est', the 'est' becomes part of
+             # 'puellast' so it shares the colour of 'puella'
+            _restore_prodelision(other_l, r2)
+        _restore_prodelision(this_l, r1)
+
+    return colorlines
+
+# RETIRED CODE
+# def combined_score(ll):
+
+# 	# the combined score of a set (for now) is just the
+# 	# mean of the pairwise scores.
+
+# 	scores = [score(a,b) for a,b in combinations(ll,2)]
+# 	return sum(scores)/len(scores)
 
 
-def find_end_rhymes(ll, gather_thresh=1.4, global_thresh=1.65, min_lines=4):
+# def find_end_rhymes(ll, gather_thresh=1.4, global_thresh=1.65, min_lines=4):
 
-	rhyming = False
-	working_set, final_set = [], []
+# 	rhyming = False
+# 	working_set, final_set = [], []
 	        
-	for idx in range(len(ll)-1):
-	    if rhyming:
-	        if score(ll[idx], ll[idx+1]) >= gather_thresh:
-	            working_set.append(ll[idx+1])
-	        else:
-	            rhyming = False
-	            if len(working_set) >= min_lines:
-	                if combined_score(working_set) >= global_thresh:
-	                	final_set.append(working_set)
-	            working_set = []
-	    else:
-	        if score(ll[idx], ll[idx+1]) >= gather_thresh:
-	            working_set = ll[idx:idx+2]
-	            rhyming = True
-	        else:
-	            continue
-	return final_set
+# 	for idx in range(len(ll)-1):
+# 	    if rhyming:
+# 	        if score(ll[idx], ll[idx+1]) >= gather_thresh:
+# 	            working_set.append(ll[idx+1])
+# 	        else:
+# 	            rhyming = False
+# 	            if len(working_set) >= min_lines:
+# 	                if combined_score(working_set) >= global_thresh:
+# 	                	final_set.append(working_set)
+# 	            working_set = []
+# 	    else:
+# 	        if score(ll[idx], ll[idx+1]) >= gather_thresh:
+# 	            working_set = ll[idx:idx+2]
+# 	            rhyming = True
+# 	        else:
+# 	            continue
+# 	return final_set
 
 
-def find_abab(ll, thresh=1.65):
+# def find_abab(ll, thresh=1.65):
 
-	final_set = []
+# 	final_set = []
 
-	idx = 0
-	while idx < len(ll)-3:
-		a1, a2 = ll[idx], ll[idx+2]
-		b1, b2 = ll[idx+1], ll[idx+3]
-		if score(a1,a2)>=thresh and score(b1,b2) >= thresh:
-			# try and extend to six. Eights will find themselves.
-			if idx < len(ll)-5:
-				if score(a2,ll[idx+4]) >=thresh and score(b2,ll[idx+5]) >= thresh:
-					final_set.append(ll[idx:idx+6])
-					idx+=2
-				else:
-					final_set.append(ll[idx:idx+4])
-			else:
-				final_set.append(ll[idx:idx+4])
-			idx+=4
-		else:
-			idx+=1
+# 	idx = 0
+# 	while idx < len(ll)-3:
+# 		a1, a2 = ll[idx], ll[idx+2]
+# 		b1, b2 = ll[idx+1], ll[idx+3]
+# 		if score(a1,a2)[0]>=thresh and score(b1,b2)[0] >= thresh:
+# 			# try and extend to six. Eights will find themselves.
+# 			if idx < len(ll)-5:
+# 				if score(a2,ll[idx+4])[0] >=thresh and score(b2,ll[idx+5])[0] >= thresh:
+# 					final_set.append(ll[idx:idx+6])
+# 					idx+=2
+# 				else:
+# 					final_set.append(ll[idx:idx+4])
+# 			else:
+# 				final_set.append(ll[idx:idx+4])
+# 			idx+=4
+# 		else:
+# 			idx+=1
 
-	return final_set
+# 	return final_set
 
 
-def find_abba(ll, thresh=1.65):
+# def find_abba(ll, thresh=1.65):
 
-	final_set = []
+# 	final_set = []
 
-	idx = 0
-	while idx < len(ll)-3:
-		a1, a2 = ll[idx], ll[idx+3]
-		b1, b2 = ll[idx+1], ll[idx+2]
-		if score(a1,a2)>=thresh and score(b1,b2) >= thresh:
-			final_set.append(ll[idx:idx+4])
-			idx+=4
-		else:
-			idx+=1
+# 	idx = 0
+# 	while idx < len(ll)-3:
+# 		a1, a2 = ll[idx], ll[idx+3]
+# 		b1, b2 = ll[idx+1], ll[idx+2]
+# 		if score(a1,a2)>=thresh and score(b1,b2) >= thresh:
+# 			final_set.append(ll[idx:idx+4])
+# 			idx+=4
+# 		else:
+# 			idx+=1
 
-	return final_set
+# 	return final_set
