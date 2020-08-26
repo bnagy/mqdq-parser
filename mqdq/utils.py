@@ -1,11 +1,12 @@
 import bs4
-from collections import Counter
+from collections import Counter, Iterable
 import re
 import numpy as np
 import pandas as pd
 from mqdq import line_analyzer as la
 from mqdq import rhyme
 import unicodedata
+import bisect
 
 DEFANCY = str.maketrans({'ü':'y', u'\u0304':None, u'\u0303':None, '`':None, '_':None})
 
@@ -195,7 +196,7 @@ def which_book(l, soup):
         soup (bs4 soup): Soup to check in
 
     Returns:
-        (int): The index of the 'division' containing l (0-based) or None
+        (int): The index of the first 'division' containing l (0-based) or None
     """
 
     for d in soup('division'):
@@ -248,3 +249,26 @@ def clean(ll):
     return [l for l in ll if l.has_attr('pattern')
     and l['pattern']!='corrupt' 
     and l['pattern']!='not scanned']
+
+def indices_to_bookref(soup, rr):
+    
+    # parsing the soup is slow, so do it once
+    cumsums = np.cumsum([len(d('line')) for d in soup('division')])
+    # allow single refs as rr, with some hackery
+    if not isinstance(rr, Iterable):
+        rr = [rr] 
+        
+    res = []
+    for ref in rr:
+        # finds leftmost value greater than idx
+        insert_at = bisect.bisect_right(cumsums, ref)
+        if insert_at >= len(cumsums):
+            raise IndexError("Line index out of range")
+        br = insert_at+1
+        lr = ref
+        if insert_at > 0:
+            lr = lr - cumsums[insert_at-1]
+        res.append((br,lr))
+    if len(res)==1:
+        return res[0]
+    return res
