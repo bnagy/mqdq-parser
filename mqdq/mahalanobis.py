@@ -67,14 +67,16 @@ def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=
     The ideal dist size is tricky to determine theoretically, but you can
     just do empirical tests and see when your results start to stabilise.
 
+    If rd is supplied, the dist parameter is ignored.
 
     Args:
         samp (pandas.DataFrame): Sample (m rows x n features)
         dist (pandas.DataFrame): Comparison distribution
         n (int, default=5000): Number of samples to draw
+        chunksz (int, default=len(samp)): Chunk size to use
         seed (int, optional): seed the PRNG for the shuffling.
         feats (list, default=la.ALL_FEATURES): Features to use
-        chunksz (int, default=len(samp)): Chunk size to use
+        rd (pandas.DataFrame): Pregenerated random sampled distribution
 
     Returns (as per explain):
         f (pandas.Series): Feature contribution vector (sorted)
@@ -195,7 +197,7 @@ def _create_sampled_dist(dist, chunksz, distsz, seed=None):
     using la.distribution, and we wanted 5000 random samples, with each one being the
     mean of 150 random lines:
 
-    create_sampled_dist(poem_dist, 150, 5000)
+    _create_sampled_dist(poem_dist, 150, 5000)
 
     Args:
         dist (pandas.DataFrame): Source distribution, NOT chunked
