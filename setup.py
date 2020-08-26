@@ -4,7 +4,7 @@ import os
 
 setup(
 	name='MQDQParser',
-	version='0.2.2',
+	version='0.3.0',
 	author='Ben Nagy',
 	packages=['mqdq'],
 	license='3-Clause BSD',
@@ -20,6 +20,7 @@ setup(
 		'beautifulsoup4',
 		'numpy',
 		'scipy',
-		'pandas'
+		'pandas',
+		'seaborn'
 	],
 )
