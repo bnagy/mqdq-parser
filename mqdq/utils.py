@@ -1,4 +1,5 @@
 import bs4
+from bs4 import BeautifulSoup
 from collections import Counter, Iterable
 import re
 import numpy as np
@@ -8,7 +9,20 @@ from mqdq import rhyme
 import unicodedata
 import bisect
 
-DEFANCY = str.maketrans({'ü':'y', u'\u0304':None, u'\u0303':None, '`':None, '_':None})
+import dominate
+from IPython.core.display import display, HTML
+
+DEFANCY = str.maketrans(
+    {"ü": "y", u"\u0304": None, u"\u0303": None, "`": None, "_": None}
+)
+
+
+def slup(fn):
+    with open(fn) as fh:
+        soup = bs4.BeautifulSoup(fh, "xml")
+        ll = clean(soup("line"))
+    return soup, ll
+
 
 def grep(soup, s):
 
@@ -54,6 +68,7 @@ def blat(ll, scan=True, phon=False, number_with=None):
 
     print("\n\n".join([txt(l, scan, phon, number_with) for l in ll]))
 
+
 def blatsave(ll, fn, scan=True, phon=False, number_with=None):
 
     """Quickly write the text of a set of lines to a file.
@@ -74,8 +89,9 @@ def blatsave(ll, fn, scan=True, phon=False, number_with=None):
             Nothing (the lines are written)
     """
 
-    with open(fn, 'w') as fh:
+    with open(fn, "w") as fh:
         fh.write("\n\n".join([txt(l, scan, phon, number_with) for l in ll]))
+
 
 def txt(l, scan=False, phon=False, number_with=None):
 
@@ -94,22 +110,28 @@ def txt(l, scan=False, phon=False, number_with=None):
     """
 
     try:
-            
-        words = l('word')
 
-        l_prefix = ''
-        scan_prefix = ''
+        words = l("word")
+
+        l_prefix = ""
+        scan_prefix = ""
         if number_with:
-            l_prefix = bookref(l, number_with) + '> '
-            padding = ' '*len(l_prefix)
+            l_prefix = bookref(l, number_with) + "> "
+            padding = " " * len(l_prefix)
 
-        if l['pattern']=='corrupt' or l['pattern']=='not scanned':
-            return l_prefix + ' '.join([w.text for w in l('word')]) + "\n" + ' '*len(l_prefix) + "[corrupt]"
+        if l["pattern"] == "corrupt" or l["pattern"] == "not scanned":
+            return (
+                l_prefix
+                + " ".join([w.text for w in l("word")])
+                + "\n"
+                + " " * len(l_prefix)
+                + "[corrupt]"
+            )
 
         ph = raw_phonetics(l)
         syls = raw_scansion(l)
-        words = [w.text for w in l('word')]
-            
+        words = [w.text for w in l("word")]
+
         if number_with:
             words = [l_prefix] + words
             syls = [padding] + syls
@@ -126,20 +148,26 @@ def txt(l, scan=False, phon=False, number_with=None):
 
     except:
         raise ValueError("Can't handle this: %s" % l)
-    
+
+
 def raw_scansion(l):
-    return [la._get_syls_with_stress(w) for w in l('word')]
+    return [la._get_syls_with_stress(w) for w in l("word")]
+
 
 def raw_phonetics(l):
-    return [w.pre_punct+'.'.join(w.syls)+w.post_punct for w in rhyme.syllabify_line(l)]
+    return [
+        w.pre_punct + ".".join(w.syls) + w.post_punct for w in rhyme.syllabify_line(l)
+    ]
+
 
 def raw_phonemics(l):
-    return [''.join(w.syls).lower().translate(DEFANCY) for w in rhyme.syllabify_line(l)]
+    return ["".join(w.syls).lower().translate(DEFANCY) for w in rhyme.syllabify_line(l)]
+
 
 def _align(*ll):
 
     # align a list of lists of strings
-    ss = ['' for l in ll]
+    ss = ["" for l in ll]
     # each list needs the same number of elements
     if len(set([len(l) for l in ll])) > 1:
         raise ValueError("Can't align, lengths not equal.")
@@ -151,12 +179,13 @@ def _align(*ll):
         lens = [sum(1 for ch in x if unicodedata.combining(ch) == 0) for x in tupl]
         maxl = max(lens)
         for idx, s in enumerate(tupl):
-            ss[idx] = ss[idx] + s + ' '*(maxl - lens[idx]) + ' '
+            ss[idx] = ss[idx] + s + " " * (maxl - lens[idx]) + " "
 
-    return '\n'.join([s.rstrip() for s in ss])
+    return "\n".join([s.rstrip() for s in ss])
+
 
 def txt_and_number(ll, every=5, scan=False, phon=False, start_at=1):
-    
+
     """Extract the text from a list of lines, with numbers. Where `txt` uses references to the text,
     this uses independent numbers. Use this method if you want to print out a sequentially numbered
     extract. Use `txt` if you want to add book refs to the result of a search or a random sample.
@@ -173,19 +202,20 @@ def txt_and_number(ll, every=5, scan=False, phon=False, start_at=1):
     """
 
     # the string length of the highest line number (100==3)
-    n_len = len(str(len(ll)+start_at))
-    pad = ' '*(n_len+2)
-    strs = [txt(l,scan,phon).split('\n') for l in ll]
+    n_len = len(str(len(ll) + start_at))
+    pad = " " * (n_len + 2)
+    strs = [txt(l, scan, phon).split("\n") for l in ll]
     numbered = []
-    for idx,ss in enumerate(strs):
-        if (idx+start_at)%every==0:
-            ss[0] = ("%*d  " % (n_len,idx+start_at)) + ss[0]
-            ss[1:] = [pad+s for s in ss[1:]]
+    for idx, ss in enumerate(strs):
+        if (idx + start_at) % every == 0:
+            ss[0] = ("%*d  " % (n_len, idx + start_at)) + ss[0]
+            ss[1:] = [pad + s for s in ss[1:]]
         else:
-            ss = [pad+s for s in ss]
-        numbered.append('\n'.join(ss))
+            ss = [pad + s for s in ss]
+        numbered.append("\n".join(ss))
 
     return numbered
+
 
 def which_book(l, soup):
 
@@ -199,14 +229,16 @@ def which_book(l, soup):
         (int): The index of the first 'division' containing l (0-based) or None
     """
 
-    for d in soup('division'):
+    for d in soup("division"):
         if l in d:
-            return d['title']
+            return d["title"]
     return None
 
-def by_ref(bn,ln,soup):
-    b = soup('division')[bn-1]
-    return b('line')[ln-1]
+
+def by_ref(bn, ln, soup):
+    b = soup("division")[bn - 1]
+    return b("line")[ln - 1]
+
 
 def bookref(l, soup):
 
@@ -223,17 +255,19 @@ def bookref(l, soup):
     b = which_book(l, soup)
     if not b:
         return None
-    return("%2s:%-3d" % (b, int(l['name'])))
+    return "%2s:%-3d" % (b, int(l["name"]))
+
 
 def bookrange(ll, soup):
     ll = list(ll)
-    b1,l1 = bookref(ll[0], soup).split(':')
-    b2, l2 = bookref(ll[-1], soup).split(':')
-    if b2==b1:
-        b2=''
+    b1, l1 = bookref(ll[0], soup).split(":")
+    b2, l2 = bookref(ll[-1], soup).split(":")
+    if b2 == b1:
+        b2 = ""
     else:
-        b2 = b2+':'
-    return '--'.join([x.strip() for x in ["%s:%s" % (b1,l1), "%s%s" % (b2,l2)]])
+        b2 = b2 + ":"
+    return "--".join([x.strip() for x in ["%s:%s" % (b1, l1), "%s%s" % (b2, l2)]])
+
 
 def clean(ll):
 
@@ -246,29 +280,109 @@ def clean(ll):
         (list of bs4 <line>): The lines, with the corrupt ones removed.
     """
 
-    return [l for l in ll if l.has_attr('pattern')
-    and l['pattern']!='corrupt' 
-    and l['pattern']!='not scanned']
+    return [
+        l
+        for l in ll
+        if l.has_attr("pattern")
+        and l["pattern"] != "corrupt"
+        and l["pattern"] != "not scanned"
+    ]
+
 
 def indices_to_bookref(soup, rr):
-    
+
     # parsing the soup is slow, so do it once
-    cumsums = np.cumsum([len(d('line')) for d in soup('division')])
+    cumsums = np.cumsum([len(d("line")) for d in soup("division")])
     # allow single refs as rr, with some hackery
     if not isinstance(rr, Iterable):
-        rr = [rr] 
-        
+        rr = [rr]
+
     res = []
     for ref in rr:
         # finds leftmost value greater than idx
         insert_at = bisect.bisect_right(cumsums, ref)
         if insert_at >= len(cumsums):
             raise IndexError("Line index out of range")
-        br = insert_at+1
+        br = insert_at + 1
         lr = ref
         if insert_at > 0:
-            lr = lr - cumsums[insert_at-1]
-        res.append((br,lr))
-    if len(res)==1:
+            lr = lr - cumsums[insert_at - 1]
+        res.append((br, lr))
+    if len(res) == 1:
         return res[0]
     return res
+
+
+def slurp(fn):
+    with open(fn) as fh:
+        soup = BeautifulSoup(fh, "xml")
+        ll = clean(soup("line"))
+    return soup, ll
+
+
+def bookinate(fn):
+    with open(fn) as fh:
+        soup = BeautifulSoup(fh, "xml")
+    return [clean(d("line")) for d in soup("division")]
+
+
+def _bloop(s):
+    display(HTML(s.render()))
+
+
+def _make_p(l, font="Times", size="small", indent=True, book=False, line=False):
+
+    # CSS style for words that will have a background colour
+    setbg = """
+    background-color: %s;
+    padding-right: 0.25em;
+    padding-left: 0.25em;
+    padding-bottom: 0.08em;
+    color: black;
+    border-radius: 4px
+    """
+
+    parastyle = """
+    line-height: 1.4;
+    margin-top: 0;
+    margin-bottom: 0;
+    font-family: %s;
+    font-size: %s"
+    """
+
+    para = dominate.tags.p(style=parastyle % (font, size))
+    if book:
+        try:
+            bn = l[0].mqdq.parent.parent["title"]
+        except KeyError:
+            bn = None
+        line = int(re.sub("[^0-9]", "", l[0].mqdq.parent["name"]))
+        if bn:
+            para += dominate.tags.span(
+                "%2s:%-4s" % (bn, line), style="float: left; width: 5em"
+            )
+        else:
+            para += dominate.tags.span("%-4s" % line, style="float: left; width: 3em")
+    elif line:
+        line = int(re.sub("[^0-9]", "", l[0].mqdq.parent["name"]))
+        para += dominate.tags.span("%-4s" % (line), style="float: left; width:4em")
+
+    if l.metre == "P" and indent:
+        para += dominate.tags.span("", style="padding-right: 1.5em")
+    for w in l:
+        if w.color:
+            para += dominate.tags.span(w.mqdq.text, style=setbg % w.color)
+        else:
+            para += dominate.tags.span(w.mqdq.text)
+    return para
+
+
+def _make_d(ll, font="Times", size="small", indent=True, book=False, line=False):
+    d = dominate.document()
+    for l in ll:
+        d += _make_p(l, font, size, indent, book, line)
+    return d
+
+
+def nbshow(ll, indent=True, book=False, line=False):
+    _bloop(_make_d(ll, "Envy Code R", "medium", indent, book, line))
