@@ -28,8 +28,8 @@ If you are also playing the Fun Academia Game, please help me refill my Academia
     year        = "2019",
     publisher   = {Zenodo},
     version     = {0.5.0},
-    doi 		= {10.5281/zenodo.4602588},
-    url    		= "https://github.com/bnagy/mqdq-parser"
+    doi         = {10.5281/zenodo.4602588},
+    url         = "https://github.com/bnagy/mqdq-parser"
 }
 ```
 
