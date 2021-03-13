@@ -17,6 +17,22 @@ This is all very alpha. When I work out how to autogenerate docs, you could use 
 
 There are some tests in [test/](test), which are more or less human-readable ipython examples. There are some Jupyter notebooks in [notebooks/](notebooks) which run through a couple of non-trivial workflow examples. More of those are expected to follow.
 
+## Citation
+
+If you are also playing the Fun Academia Game, please help me refill my Academia Hearts.
+
+```tex
+@software{nagy_mqdq_2019,
+    author 		= "Nagy, Ben",
+    title  		= "{MQDQParser}: Utility scripts in {P}ython for working with {XML} poems from {MQDQ}",
+    year   		= "2019",
+    publisher 	= {Zenodo},
+    version 	= {0.5.0},
+    doi 		= {10.5281/zenodo.4602588},
+    url    		= "https://github.com/bnagy/mqdq-parser"
+}
+```
+
 ## License & Acknowledgements
 
 Code: BSD style, see the [LICENSE](LICENSE.txt)
