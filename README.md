@@ -21,7 +21,7 @@ There are some tests in [test/](test), which are more or less human-readable ipy
 
 If you are also playing the Fun Academia Game, please help me refill my Academia Hearts.
 
-```tex
+```
 @software{nagy_mqdq_2019,
     author 		= "Nagy, Ben",
     title  		= "{MQDQParser}: Utility scripts in {P}ython for working with {XML} poems from {MQDQ}",
