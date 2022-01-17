@@ -9,7 +9,7 @@
 
 HOPEFULLY, you can just do pip install MQDQParser and it will all work. Open issues if not.
 
-Latest pypi version: 0.5.0
+Latest pypi version: 0.6.1
 
 ## Usage
 
@@ -27,7 +27,7 @@ If you are also playing the Fun Academia Game, please help me refill my Academia
     title       = "{MQDQParser}: Utility scripts in {P}ython for working with {XML} poems from {MQDQ}",
     year        = "2019",
     publisher   = {Zenodo},
-    version     = {0.5.0},
+    version     = {0.6.1},
     doi         = {10.5281/zenodo.4602588},
     url         = "https://github.com/bnagy/mqdq-parser"
 }

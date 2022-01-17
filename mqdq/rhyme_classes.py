@@ -182,6 +182,14 @@ class LineSet(UserList):
     # pos1 has an array of (pos2, lim) where pos2 is the position to rhyme
     # and lim is how far ahead to look at most when linking
     BASIC_VERTICAL = {
+        # endwords rhyme with endwords OR mids in the same line
+        -1: [("mid", 0), (-1, 3)],
+        -2: [(-2, 3)],
+        "mid": [("mid", 2)],
+    }
+
+    VERTICAL_PLUS = {
+        0: [(0, 3)],
         -1: [("mid", 0), (-1, 3)],
         -2: [(-2, 3)],
         "mid": [("mid", 2)],
@@ -191,19 +199,23 @@ class LineSet(UserList):
         self, config=BASIC_VERTICAL, thresh=rhyme.GLOBAL_RHYME_THRESH, preserve=False
     ):
 
-        for li, l1 in enumerate(self.data):
+        # Link words in a LineSet that rhyme. Positions to compare
+        # are set out in the config dict. All words which rhyme above
+        # the given threshold are linked.
+
+        for li, first_l in enumerate(self.data):
             for pos1 in config.keys():
-                w1 = l1.fetch(pos1)
+                w1 = first_l.fetch(pos1)
                 matches = []
                 if not w1:
                     continue
-                for lj, l2 in enumerate(self.data[li:]):
-                    # lj is a positive offset index from l1
+                for lj, second_l in enumerate(self.data[li:]):
+                    # lj is a positive offset index from first_l
                     for pos2, lim in config[pos1]:
                         if pos1 == pos2 and lj == 0:
                             continue
                         if lj <= lim:
-                            w2 = l2.fetch(pos2)
+                            w2 = second_l.fetch(pos2)
                             s = rhyme.word_rhyme(w1, w2)
                             if s > thresh:
                                 if not preserve:
@@ -232,6 +244,9 @@ class LineSet(UserList):
 
     def color(self, preserve=False):
 
+        # color takes a linked (cf link) set of lines and applies the
+        # deterministic colouring metadata
+
         stash = [rhyme._stash_prodelision(l) for l in self.data]
 
         for l in self.data:
@@ -239,13 +254,17 @@ class LineSet(UserList):
                 if w.best_word:
                     rhymeset = [w, w.best_word]
                     next_w = w.best_word.best_word
+                    # follow the best-word matches for each word in
+                    # this rhyme group (words that all kind of rhyme).
+                    # when we find the best one of all, use that to
+                    # colour the rest.
                     for x in range(10):
-                        # once start to loop back we're done with our
-                        # hill climb to find the bestest word in the rhymeset
                         if not any(id(y) == id(next_w) for y in rhymeset):
                             rhymeset.append(next_w)
                             next_w = next_w.best_word
                         else:
+                            # once start to loop back around we're done with our
+                            # hill climb
                             break
                     rhymeset = sorted(
                         rhymeset, key=lambda w: (w.best_match, id(w)), reverse=True
@@ -274,20 +293,26 @@ class LineSet(UserList):
         self.link(config, thresh, preserve)
         self.color(preserve)
 
+    # 20/9/21 for v0.6.0 Added initial words to the rhyme scoring and linking
+
     END_BIAS = {
-        "ult_count": 1.5,
+        "first_count": 1.0,
+        "first_score": 0.5,
+        "ult_count": 1.2,
         "ult_score": 1.0,
         "penult_count": 0.8,
         "penult_score": 0.8,
         "ante_count": 0.5,
         "ante_score": 0.0,
         "mid_count": 1.0,
-        "mid_score": 0.2,
+        "mid_score": 0.5,
         "score_bias": 0.5,
         "score_exponent": 2.4,
     }
 
     END_RHYMES = {
+        "first_count": 0.0,
+        "first_score": 0.0,
         "ult_count": 1.0,
         "ult_score": 1.0,
         "penult_count": 0.0,
@@ -301,6 +326,8 @@ class LineSet(UserList):
     }
 
     MID_RHYMES = {
+        "first_count": 0.0,
+        "first_score": 0.0,
         "ult_count": 0.0,
         "ult_score": 0.0,
         "penult_count": 0.0,
@@ -314,6 +341,8 @@ class LineSet(UserList):
     }
 
     NEUTRAL = {
+        "first_count": 1.0,
+        "first_score": 1.0,
         "ult_count": 1.0,
         "ult_score": 1.0,
         "penult_count": 1.0,
@@ -323,14 +352,25 @@ class LineSet(UserList):
         "mid_count": 1.0,
         "mid_score": 1.0,
         "score_bias": 0.5,
-        "score_exponent": 2.0,
+        "score_exponent": 2.4,
     }
 
     def score(self, config=END_BIAS, lim=3):
 
+        # For a linked set of lines, every word that is involved in a rhyme
+        # will have a `best_match`. This method calculates a score based on
+        # the config dict which adjusts the weights for rhymes in various
+        # positions, the _number_ of rhymes versus the raw scores and a
+        # configurable exponent (to give the scores more spread if desired).
+
         count = 0.0
         score = 0.0
         for idx, l in enumerate(self.data):
+            if l[0].color and config["first_count"]:
+                count += 1 * config["first_count"]
+                score += (l[0].best_match) ** config["score_exponent"] * config[
+                    "first_score"
+                ]
             if l.midword and l.midword.color:
                 count += 1 * config["mid_count"]
                 score += (l.midword.best_match) ** config["score_exponent"] * config[

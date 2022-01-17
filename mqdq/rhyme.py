@@ -364,7 +364,7 @@ def _elide(s1, s2):
 
     # strip final nasals, but not all nasals
     s1 = s1.rstrip("mMnN")
-    s1 = s1.rstrip(VOWELS)
+    s1 = s1.rstrip(ALL_VOWELS)
 
     if len(s1) == 0:
         return s2
@@ -423,8 +423,6 @@ def _phonetify(w) -> Word:
             w.syls[idx] = re.sub("QU", "KW", w.syls[idx])
 
         # gn was pronounced as a palatalised nasal, which I'm writing as nj
-        # TODO should also do this after elision somehow
-        # magnum Alciden -> man._ Jal.ki.den
         if (
             len(w.syls) > idx + 1
             and w.syls[idx].endswith("g")
@@ -515,15 +513,38 @@ def _elision_phon(line, metre):
                     raise e
 
                 w.syls[-1] = "_"
+
+                # If an elision puts a g next to an n, make the phonetic
+                # conversion here ignem exercentibus -> in_ jex
+                # the rest (x -> ks) will be fixed up in phonetify, but
+                # that method only sees one word at a time, so it can't do this.
+                if (
+                    len(w.syls) > 1
+                    and w.syls[-2].endswith("g")
+                    and elided.startswith(("n", "N"))
+                ):
+                    if elided.startswith("n"):
+                        elided = "j" + elided[1:]
+                    else:
+                        elided = "J" + elided[1:]
+                    w.syls[-2] = w.syls[-2][:-1] + "n"
+
                 line[idx + 1].syls[0] = elided
                 # drop final punctuation, elision over punct is silly
                 w.post_punct = ""
             # prodelision, which 'elides backwards' (puella est -> puellast)
             elif w.mqdq["mf"] == "PE":
-                line[idx - 1].syls[-1] = line[idx - 1].syls[-1].rstrip("mM") + w.syls[
-                    0
-                ].lstrip(VOWELS)
-                w.syls[0] = "_"
+                line[idx - 1].syls[-1] = (
+                    line[idx - 1].syls[-1].rstrip("mM") + "_" + w.syls[0].lstrip(VOWELS)
+                )
+                # w.syls[0] = "_"
+                if len(w.syls) > 1:
+                    w.syls[0] = "_"
+                else:
+                    # this leaves the word and its post punctuation.
+                    # removing the word entirely breaks alignment
+                    # for things like blat.
+                    w.syls = []
 
     # now do phonetics at the word level
     return Line([_phonetify(w) for w in line], metre)
@@ -564,7 +585,7 @@ def syllabify(ll) -> LineSet:
     return LineSet([syllabify_line(l) for l in ll])
 
 
-# 10/11 bumped i-e slightly and o-a slightly based on
+# 10/11/20 bumped i-e slightly and o-a slightly based on
 # Hirjee & Brown
 NUCLEUS_SCORES = {
     "i": {"i": 1, "e": 0.75, "a": 0.5, "o": 0.42, "u": 0.4, "ü": 0.5},

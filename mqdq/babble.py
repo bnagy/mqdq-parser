@@ -243,9 +243,20 @@ def bookbabs(fn, name=None):
 
 
 def multibabs(fns, name):
+    if not fns:
+        raise ValueError("No filenames! (check your glob?)")
     babs = []
     for i, fn in enumerate(fns):
         babs.append(Babbler.from_file(fn, name="%s %d" % (name, i + 1)))
+    return babs
+
+
+def multi_bookbabs(fns, name):
+    if not fns:
+        raise ValueError("No filenames! (check your glob?)")
+    babs = []
+    for i, fn in enumerate(fns):
+        babs += bookbabs(fn, name="%s %d" % (name, i + 1))
     return babs
 
 
@@ -358,6 +369,9 @@ class Babbler:
         self.raw_source = ll
         self.name = name
         self.elegiac = bool(self.source_p)
+
+    def __len__(self):
+        return len(self.raw_source)
 
     @functools.lru_cache(maxsize=3)
     def _syl_source(self, metre="both"):
@@ -1069,6 +1083,7 @@ class Babbler:
                     u_pval = (1 + p) / 2.0
                     l_pval = 1 - u_pval
                     l_indx = int(np.floor(n * l_pval))
+                    # TODO should this be ceil?
                     u_indx = int(np.floor(n * u_pval))
                     m_idx = int(np.floor(len(ary) / 2))
                     return (ary[l_indx], ary[m_idx], ary[u_indx])

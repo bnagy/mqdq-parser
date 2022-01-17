@@ -469,17 +469,60 @@ def _funky_map(l, mappers):
     return res
 
 
-def _binary_features(l):
-    return _funky_map(
-        l,
-        [
-            [lambda l: l["pattern"][:4], "S"],
-            [lambda l: harmony(l), "C"],
-            [lambda l: diaereses(l, start=1, end=4), "T"],
-            [lambda l: caesurae(l, start=1, end=4), "S"],
-            [lambda l: caesurae(l, start=1, end=4), "W"],
-        ],
-    )
+VALID_FEET = set("DS")
+
+
+def _pent_pattern(l):
+    return [c for c in l["pattern"] if c in VALID_FEET]
+
+
+def _pent_harmony(l):
+    a = list(harmony(l, n=5))
+    # The third entry will always be the half-foot
+    # it is word-final, so can never be in harmony
+    del a[2]
+    return a
+
+
+def _pent_diaereses(l):
+    a = list(diaereses(l, end=5))
+    # The half-foot can't have diaeresis
+    del a[2]
+    return a
+
+
+def _pent_caesurae(l):
+    a = list(caesurae(l, start=1, end=5))
+    # The half-foot is an obligatory strong caesura
+    del a[2]
+    return a
+
+
+def binary_features(l):
+    if l["metre"] == "H":
+        return _funky_map(
+            l,
+            [
+                [lambda l: l["pattern"][:4], "S"],
+                [lambda l: harmony(l), "C"],
+                [lambda l: diaereses(l, start=1, end=4), "T"],
+                [lambda l: caesurae(l, start=1, end=4), "S"],
+                [lambda l: caesurae(l, start=1, end=4), "W"],
+            ],
+        )
+    elif l["metre"] == "P":
+        return _funky_map(
+            l,
+            [
+                [lambda l: _pent_pattern(l)[:4], "S"],
+                [_pent_harmony, "C"],  # NB these are being passed as functions
+                [_pent_diaereses, "T"],
+                [_pent_caesurae, "S"],
+                [_pent_caesurae, "W"],
+            ],
+        )
+    else:
+        raise ArgumentError("Unknown metre type %s" % l["metre"])
 
 
 BINARY_FEATURES = [
@@ -507,20 +550,13 @@ BINARY_FEATURES = [
 ALL_FEATURES = BINARY_FEATURES + ["ELC"]
 
 
-def chunked_features(ll, n=1, feats=ALL_FEATURES):
+def chunked_features(ll, n=None, feats=ALL_FEATURES):
 
     """Take a set of binary features per line, and return a chunked average.
 
     Eg if the feature was F1S (first foot spondee), every line would be given
     a 1 or 0, and the result would be the proportion of lines in the chunk with
     that feature.
-
-    Current Features (15 in total)
-    - Spondee (feet 1 to 4)
-    - Ictus/Accent Conflict (1 to 4)
-    - Bucolic Diaeresis (foot 4)
-    - Strong Caesura (feet 2, 3, 4)
-    - Weak Caesura (feet 2, 3, 4)
 
     NB: If the length of `ll` is not divisible by `n` the last chunk will still be
         calculated, but the variance might be high. It's up to the user to drop that
@@ -540,12 +576,14 @@ def chunked_features(ll, n=1, feats=ALL_FEATURES):
     if ll.__class__ == bs4.element.Tag:
         ll = [ll]
 
-    if n > len(ll):
+    if n and n > len(ll):
         raise ValueError("Chunk size must be <= number of lines")
+    if not n:
+        n = len(ll)
 
-    df = pd.DataFrame(map(lambda l: _binary_features(l), ll), columns=BINARY_FEATURES)
+    df = pd.DataFrame(map(lambda l: binary_features(l), ll), columns=BINARY_FEATURES)
     if "ELC" in feats:
-        df["ELC"] = [elision_count(l) for l in ll]
+        df["ELC"] = [la.elision_count(l) for l in ll]
     return _chunk_mean(df[feats], n)
 
 
@@ -638,3 +676,49 @@ def raw_phonetics(l):
 
 def raw_phonemics(l):
     return ["".join(w.syls).lower().translate(DEFANCY) for w in rhyme.syllabify_line(l)]
+
+
+def word_idx_syls(l, idx):
+
+    """For a given line, return the number of syllables in the word appearing
+    at index `idx`. Attempts to cater for elision and prodelision (eg mea est
+    at the end of a line will yield two syllables for the final word).
+
+    Args:
+        l (bs4 <line>: Line to operate on
+        idx (int): Line position (negative indices are OK)
+
+    Returns:
+        (float): Number of syllables
+    """
+
+    ww = l("word")
+    try:
+        w = ww[idx]
+    except IndexError:
+        raise IndexError("No word at index %d: %s" % (idx, utils.txt(l)))
+    if not w["sy"]:
+        if w.has_attr("mf") and w["mf"] == "PE" and idx != 0:  # don't wrap
+            # prodelision, include the word before in the count (eg mea est -> meast)
+            try:
+                count = word_idx_syls(l, idx - 1)
+            except IndexError:
+                raise IndexError(
+                    "IndexError going backwards at prodelision %d: %s"
+                    % (idx, utils.txt(l))
+                )
+        elif w.has_attr("mf") and w["mf"] == "SY" and idx != -1:
+            # ordinary elision, include the next word (eg cum arte -> carte)
+            try:
+                count = word_idx_syls(l, idx + 1)
+            except IndexError:
+                raise IndexError(
+                    "IndexError going forwards at elision %d: %s" % (idx, utils.txt(l))
+                )
+        else:
+            raise ValueError(
+                "Word at index %d has no syllables?: %s" % (idx, utils.txt(l))
+            )
+    else:
+        count = len(w["sy"]) / 2
+    return count
