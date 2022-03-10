@@ -1,5 +1,4 @@
 from mqdq import line_analyzer as la
-from mqdq import utils
 from mqdq import rhyme_classes
 
 import pandas as pd

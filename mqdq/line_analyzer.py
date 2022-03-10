@@ -170,7 +170,7 @@ def diaer_after_foot(n, l):
                 return True
         return False
     except:
-        raise ValueError("Error processing: %s" % line)
+        raise ValueError("Error processing: %s" % l)
 
 
 def diaereses(l, start=1, end=5):
@@ -522,7 +522,7 @@ def binary_features(l):
             ],
         )
     else:
-        raise ArgumentError("Unknown metre type %s" % l["metre"])
+        raise ValueError("Unknown metre type %s" % l["metre"])
 
 
 BINARY_FEATURES = [
@@ -583,7 +583,7 @@ def chunked_features(ll, n=None, feats=ALL_FEATURES):
 
     df = pd.DataFrame(map(lambda l: binary_features(l), ll), columns=BINARY_FEATURES)
     if "ELC" in feats:
-        df["ELC"] = [la.elision_count(l) for l in ll]
+        df["ELC"] = [elision_count(l) for l in ll]
     return _chunk_mean(df[feats], n)
 
 

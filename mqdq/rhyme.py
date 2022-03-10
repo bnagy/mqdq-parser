@@ -7,7 +7,7 @@ from mqdq import line_analyzer as la
 import string
 from collections import namedtuple, UserString
 from dataclasses import dataclass
-from typing import List, Any
+from typing import List, Any, Tuple
 import bs4
 from bs4 import BeautifulSoup
 from itertools import combinations
@@ -840,7 +840,7 @@ def _final_syl_rhyme(s1, s2):
     return score
 
 
-def _word_rhyme_debug(w1, w2) -> (float, float, float):
+def _word_rhyme_debug(w1, w2) -> Tuple[float, float, float]:
 
     # syls _might_ be empty, if the word is 'est' and it got eaten
     # by the previous word (prodelision)
