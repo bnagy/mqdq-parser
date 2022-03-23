@@ -1,6 +1,6 @@
 import bs4
 from bs4 import BeautifulSoup
-from collections import Counter, Iterable
+from collections import Counter
 import re
 import numpy as np
 import pandas as pd
@@ -294,7 +294,9 @@ def indices_to_bookref(soup, rr):
     # parsing the soup is slow, so do it once
     cumsums = np.cumsum([len(d("line")) for d in soup("division")])
     # allow single refs as rr, with some hackery
-    if not isinstance(rr, Iterable):
+    try:
+        i = iter(rr)
+    except TypeError:
         rr = [rr]
 
     res = []
