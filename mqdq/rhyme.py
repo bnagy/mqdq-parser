@@ -255,10 +255,13 @@ def _try_grow(w, syls, t, t_list, mqdq_slen):
 
 
 def _macronize_short_syl(syl):
+    # already long, don't need to add a macron
     if len(syl) > 1 and all(x in VOWELS for x in list(syl)):
         return syl
 
-    l = [x + COMBINING_MACRON if x in VOWELS else x for x in list(syl)]
+    # remove any existing macrons or tildes to make sure we
+    # are idempotent here
+    l = [x.translate(DEMACRON) + COMBINING_MACRON if x in VOWELS else x for x in list(syl)]
     return "".join(l)
 
 
@@ -481,10 +484,9 @@ def _phonetify(w) -> Word:
         w.syls[-1] = w.syls[-1][:-1]
         # if what's left ends with a macron, it was a vowel
         # that now needs to be nasalised (tilde) instead
-        if w.syls[-1].endswith(COMBINING_MACRON):
-            w.syls[-1] = w.syls[-1][:-1]
-        if w.syls[-1][-1] in VOWELS:
-            w.syls[-1] = w.syls[-1] + COMBINING_TILDE
+        # 4/22 allow tilde to be stacked onto macron
+        if w.syls[-1][-1] in VOWELS or w.syls[-1][-1]==COMBINING_MACRON:
+            w.syls[-1] += COMBINING_TILDE
         # Change 16/11/20: reverse my previous practice of dropping final m
         # I still don't think they're pronounced, but they matter for working
         # out length by position, so we'll keep it :/

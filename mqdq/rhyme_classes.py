@@ -21,7 +21,7 @@ class Syl(str):
                 else:
                     self.onset, self.nucleus, self.coda = rhyme.ONC.split(s)
 
-                if self.coda.startswith(("m", "n")):
+                if self.coda.startswith(("m", "n")) and not rhyme.COMBINING_TILDE in self.nucleus:
                     self.nucleus += rhyme.COMBINING_TILDE
 
             except Exception as e:
