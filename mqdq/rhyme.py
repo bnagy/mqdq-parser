@@ -420,7 +420,7 @@ def _phonetify(w) -> Word:
 
         # qu becomes 'kw', although really
         # it should probably be more like rounded k (kʷ) per Allen
-        if re.match("qu", w.syls[idx], flags=re.I):
+        if re.search("qu", w.syls[idx], flags=re.I):
             w.syls[idx] = re.sub("qu", "kw", w.syls[idx])
             w.syls[idx] = re.sub("Qu", "Kw", w.syls[idx])
             w.syls[idx] = re.sub("QU", "KW", w.syls[idx])
@@ -474,8 +474,10 @@ def _phonetify(w) -> Word:
     # My syllable string after parsing looks like 5A5b5c`6A6X etc
     # which is converted to ['5A', '5b', '5c', '`', '6A', '6X']
     sarr = re.findall("[1-9ATXbc]{1,2}|`|_", la._get_syls_with_stress(w.mqdq))
+    print(sarr)
     if "`" in sarr:
-        w.syls[sarr.index("`")] = "`" + w.syls[sarr.index("`")]
+        # strip leading ` if it's there, to stay idempotent
+        w.syls[sarr.index("`")] = "`" + w.syls[sarr.index("`")].lstrip('`')
 
     if len(w.syls) > 0 and w.syls[-1][-1] in "mM":
         # elision has taken place by now, so final m does not
