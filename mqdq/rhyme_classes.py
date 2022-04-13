@@ -392,7 +392,7 @@ class LineSet(UserList):
                 # for the purposes of scoring, but DON'T recolor. This is all so we
                 # can use the correct "best match" when we weight for mid_score vs
                 # end_score
-                end_rhymes = [0]
+                end_rhymes = [0.0]
                 # slicing past the end is safe in python
                 for (idx2, l2) in enumerate(self.data[idx - lim : idx + lim + 1]):
                     if idx2 == idx:
