@@ -1,6 +1,7 @@
 import re
 import numpy as np
-from mqdq import rhyme
+from typing import Iterable, Mapping
+from mqdq import rhyme, rhyme_classes
 
 CONS_SPACE = {
     'p': 0.0,
@@ -35,7 +36,7 @@ VOWEL_SPACE = {
     'y': 1.0
 }
 
-def _locate(s, h):
+def _locate(s: str, h: dict[str, float]) -> float:
     '''Given an initial mapping of single character tokens, return a float for
     any single token or cluster of tokens.'''
     if s in h:
@@ -55,7 +56,7 @@ def _locate(s, h):
         raise ValueError("Failed to locate %s somehow", s)
     return h[s]
 
-def _syl_meta(w):
+def _syl_meta(w: rhyme_classes.Word) -> list[list[float]]:
     '''
     Convert a word into a List of Lists, one list per syllable. Each list
     contains a value for Onset, Nucleus, Coda and Prosody, which are all in
@@ -65,9 +66,9 @@ def _syl_meta(w):
         w (rhyme.Word): Word to convert
 
     Returns:
-        List[float,float,float,float]: the result.
+        List[List[float]]: the result.
     '''
-    syls = re.findall("..", w.mqdq['sy'])
+    syls = re.findall(re.compile('..'), str(w.mqdq['sy']))
     final = []
     for i,s in enumerate(syls):
 
@@ -101,22 +102,22 @@ def _syl_meta(w):
                 meta |= 0b100000
         # normalise to [0,1] (max possible value here since SY, CM CF and DI are
         # mutually exclusive)
-        meta /= 0b1100011
+        metaf = meta / 0b1100011
 
         onc = []
         for meth in ['onset', 'nucleus', 'coda']:
             onc.append(getattr(w.syls[i],meth).translate(rhyme.DEFANCY).lower())
-        onc.append(meta)
+        onc.append(metaf)
         onc[0], onc[2] = _locate(onc[0],CONS_SPACE), _locate(onc[2],CONS_SPACE)
         onc[1] = _locate(onc[1],VOWEL_SPACE)
         
         final.append(onc)
     return final
 
-def _flatten(t):
+def _flatten(t: Iterable) -> list:
     return [item for sublist in t for item in sublist]
     
-def _line_matrix(l):
+def _line_matrix(l: rhyme_classes.Line) -> np.ndarray:
     '''
     Produce a matrix from a rhyme.Line using +syl_meta+. The final array is 4 x
     num_syls.
@@ -131,13 +132,13 @@ def _line_matrix(l):
     mtrx = np.array(_flatten(ary))
     return mtrx.transpose()
 
-def _pad(m, pad_left, pad_right):
-    # more efficient to break this out as a method so we can pad in a list comp.
+# more efficient to break this out as a method so we can pad in a list comp.
+def _pad(m: np.ndarray, pad_left: int, pad_right: int) -> np.ndarray:
     pre = np.zeros((4,pad_left))
     post = np.zeros((4,pad_right-m.shape[1]))
     return np.concatenate([pre,m,post],axis=1)
 
-def lines_to_tensor(syl_lines, pad_right=20, pad_left=2):
+def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=20, pad_left: int=2) -> np.ndarray:
     '''
     Convert an enumerable of rhyme.Lines to a tensor using +syl_meta+. The final
     tensor contains four layers, one layer for each of Onset, Nucleus, Coda and
@@ -177,6 +178,6 @@ def lines_to_tensor(syl_lines, pad_right=20, pad_left=2):
     for i in range(4):
         # start at i, take every 4th row
         layers.append(full_df[i::4].copy())
-    # finally, stack the four layers 'backwards' to make the final tensor of
-    # shape lines (long) x pad_width (wide) x 4 (deep)
+    # finally, stack the four layers 'backwards' to make the final proto-tensor
+    # of shape lines (long) x pad_width (wide) x 4 (deep)
     return np.stack(layers,axis=-1)

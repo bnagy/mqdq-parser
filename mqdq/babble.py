@@ -6,6 +6,7 @@ import copy
 import operator
 import numpy as np
 import scipy as sp
+from scipy import stats
 import pandas as pd
 import functools
 import string
@@ -56,9 +57,9 @@ def slant_leo(ll):
 
 # add an attribute to the function to track the number of
 # lines it expects. Simplifies the API elsewhere.
-slant_leo.length = 1
-slant_leo.name = "slant leo"
-slant_leo.baseline = None
+slant_leo.length = 1            #type: ignore
+slant_leo.name = "slant leo"    #type: ignore
+slant_leo.baseline = None       #type: ignore
 
 
 def build_filter(tups, length, name=None, baseline=None, cross=False):
@@ -348,7 +349,7 @@ def vectorise_lines(ll, name):
 
 class Babbler:
     @classmethod
-    def from_file(klass, *fns, name=None):
+    def from_file(cls, *fns, name=None):
 
         raw_source = []
         for fn in fns:
@@ -358,7 +359,7 @@ class Babbler:
         if not name:
             name = fns[0]
 
-        return klass(raw_source, name)
+        return cls(raw_source, name)
 
     def __init__(self, ll, name=None):
 
@@ -444,7 +445,7 @@ class Babbler:
                     # if we tack 'st' onto a short syllable it would lengthen
                     # so don't allow PE if w1 ends short.
                     return False
-                return (w1_last in "maeiou") and random.random() >= 0.5
+                return (str(w1_last) in "maeiou") and random.random() >= 0.5
 
             if w1["mqdq"].has_attr("mf") and w1["mqdq"]["mf"] == "PE":
                 # w1 got elided 'backwards' onto the word before it, but
@@ -458,15 +459,15 @@ class Babbler:
                 return w2_first and w2_first in "aeiouyh"
             else:
                 # not elided, so if w1 ends with a vowel, w2 can't start with one
-                if w1_last in "maeiouy":
-                    return w2_first not in "aeiouyh"
+                if str(w1_last) in "maeiouy":
+                    return str(w2_first) not in "aeiouyh"
 
             # ends with a consonant now
             if ls1 and ls1[-1] in "bc":  # a short syllable
-                if w1_last not in "aeiouyh":
+                if str(w1_last) not in "aeiouyh":
                     # w1 ends in a consonant, so the next word must start vowelish
                     # otherwise the short syllable would have lengthened by position
-                    return w2_first in "aeiouyh"
+                    return str(w2_first) in "aeiouyh"
 
             # the last thing I don't know how to manage is words that should end short
             # (say 'caput' or 'timet' or something) but have lengthened by position in
@@ -814,16 +815,16 @@ class Babbler:
                     else:
                         alt = "greater"
 
-                    p = sp.stats.binom_test(t, t + f, bl, alternative=alt)
+                    p = stats.binom_test(t, t + f, bl, alternative=alt)
                     # If we have simulated baselines then we can make a more conservative
                     # estimate of the p value by using the 95th percentile (simulated)
                     # baseline as our ground truth for the binomial test (and similar for
                     # the 5th if our chosen alternative is 'less')
                     extreme_p = p
                     if alt == "less" and bl5:
-                        extreme_p = sp.stats.binom_test(t, t + f, bl5, alternative=alt)
+                        extreme_p = stats.binom_test(t, t + f, bl5, alternative=alt)
                     if alt == "greater" and bl95:
-                        extreme_p = sp.stats.binom_test(t, t + f, bl95, alternative=alt)
+                        extreme_p = stats.binom_test(t, t + f, bl95, alternative=alt)
                 else:
                     expected = 0
                     alt = None
@@ -910,7 +911,7 @@ class Babbler:
         simulations = [None] * n
         for c in range(n):
             simulations[c] = f(m)
-        simulations.sort()
+        simulations.sort() #type: ignore
 
         def ci(p):
             """
@@ -1017,6 +1018,7 @@ class Babbler:
             h_adjust = len(h) / len(self._syl_source(metre="H"))
             p = [l.fetch(pos) for l in self._syl_source(metre="P") if l.fetch(pos)]
             adj = 1
+            p_adjust = 1
             if p:
                 p_adjust = len(p) / len(self._syl_source(metre="P"))
             if m == "cross":

@@ -865,7 +865,7 @@ def _word_rhyme_debug(w1, w2) -> Tuple[float, float, float]:
     # For uneven lengths, if we have Xx vs Yyy then compare
     # the two final syllables, slurring over like
     # UN.də.ground // COM.pound
-    coda_score = 0
+    coda_score = 0.0
 
     if len(w1.post_stress) > 0 and len(w2.post_stress) > 0:
         # this inherently punishes words that are single syllable
@@ -936,7 +936,7 @@ def word_rhyme(w1, w2) -> (float):
     # For uneven lengths, if we have Xx vs Yyy then compare
     # the two final syllables, slurring over like
     # UN.də.ground // COM.pound
-    coda_score = 0
+    coda_score = 0.0
 
     if len(w1.post_stress) > 0 and len(w2.post_stress) > 0:
         # single syllable words have their score doubled during
