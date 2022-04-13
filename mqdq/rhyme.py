@@ -474,7 +474,6 @@ def _phonetify(w) -> Word:
     # My syllable string after parsing looks like 5A5b5c`6A6X etc
     # which is converted to ['5A', '5b', '5c', '`', '6A', '6X']
     sarr = re.findall("[1-9ATXbc]{1,2}|`|_", la._get_syls_with_stress(w.mqdq))
-    print(sarr)
     if "`" in sarr:
         # strip leading ` if it's there, to stay idempotent
         w.syls[sarr.index("`")] = "`" + w.syls[sarr.index("`")].lstrip('`')
