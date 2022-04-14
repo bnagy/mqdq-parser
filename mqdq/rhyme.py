@@ -425,6 +425,13 @@ def _phonetify(w) -> Word:
             w.syls[idx] = re.sub("Qu", "Kw", w.syls[idx])
             w.syls[idx] = re.sub("QU", "KW", w.syls[idx])
 
+        # Hack. Sometimes que gets elided so you have a bare q before a vowel.
+        # If the last regexp didn't match it's safe to try again.
+        if re.search("q", w.syls[idx], flags=re.I):
+            w.syls[idx] = re.sub("q", "kw", w.syls[idx])
+            w.syls[idx] = re.sub("Q", "Kw", w.syls[idx])
+            w.syls[idx] = re.sub("Q", "KW", w.syls[idx])
+
         # gn was pronounced as a palatalised nasal, which I'm writing as nj
         if (
             len(w.syls) > idx + 1
