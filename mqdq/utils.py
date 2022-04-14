@@ -10,6 +10,7 @@ import unicodedata
 import bisect
 
 import dominate
+from dominate import tags
 from IPython.core.display import display, HTML
 
 DEFANCY = str.maketrans(
@@ -115,8 +116,9 @@ def txt(l, scan=False, phon=False, number_with=None):
 
         l_prefix = ""
         scan_prefix = ""
+        padding = ""
         if number_with:
-            l_prefix = bookref(l, number_with) + "> "
+            l_prefix = str(bookref(l, number_with)) + "> "
             padding = " " * len(l_prefix)
 
         if l["pattern"] == "corrupt" or l["pattern"] == "not scanned":
@@ -260,8 +262,11 @@ def bookref(l, soup):
 
 def bookrange(ll, soup):
     ll = list(ll)
-    b1, l1 = bookref(ll[0], soup).split(":")
-    b2, l2 = bookref(ll[-1], soup).split(":")
+    if bookref(ll[0], soup)==None:
+        # no books or something
+        return ''
+    b1, l1 = str(bookref(ll[0], soup)).split(":")
+    b2, l2 = str(bookref(ll[-1], soup)).split(":")
     if b2 == b1:
         b2 = ""
     else:
@@ -302,7 +307,7 @@ def indices_to_bookref(soup, rr):
     res = []
     for ref in rr:
         # finds leftmost value greater than idx
-        insert_at = bisect.bisect_right(cumsums, ref)
+        insert_at = bisect.bisect_right(cumsums, ref) # type: ignore
         if insert_at >= len(cumsums):
             raise IndexError("Line index out of range")
         br = insert_at + 1
@@ -352,7 +357,7 @@ def _make_p(l, font="Times", size="small", indent=True, book=False, line=False):
     font-size: %s"
     """
 
-    para = dominate.tags.p(style=parastyle % (font, size))
+    para = tags.p(style=parastyle % (font, size))
     if book:
         try:
             bn = l[0].mqdq.parent.parent["title"]
@@ -360,22 +365,22 @@ def _make_p(l, font="Times", size="small", indent=True, book=False, line=False):
             bn = None
         line = int(re.sub("[^0-9]", "", l[0].mqdq.parent["name"]))
         if bn:
-            para += dominate.tags.span(
+            para += tags.span(
                 "%2s:%-4s" % (bn, line), style="float: left; width: 5em"
             )
         else:
-            para += dominate.tags.span("%-4s" % line, style="float: left; width: 3em")
+            para += tags.span("%-4s" % line, style="float: left; width: 3em")
     elif line:
         line = int(re.sub("[^0-9]", "", l[0].mqdq.parent["name"]))
-        para += dominate.tags.span("%-4s" % (line), style="float: left; width:4em")
+        para += tags.span("%-4s" % (line), style="float: left; width:4em")
 
     if l.metre == "P" and indent:
-        para += dominate.tags.span("", style="padding-right: 1.5em")
+        para += tags.span("", style="padding-right: 1.5em")
     for w in l:
         if w.color:
-            para += dominate.tags.span(w.mqdq.text, style=setbg % w.color)
+            para += tags.span(w.mqdq.text, style=setbg % w.color)
         else:
-            para += dominate.tags.span(w.mqdq.text)
+            para += tags.span(w.mqdq.text)
     return para
 
 
