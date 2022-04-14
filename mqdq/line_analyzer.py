@@ -550,7 +550,7 @@ BINARY_FEATURES = [
 ALL_FEATURES = BINARY_FEATURES + ["ELC"]
 
 
-def chunked_features(ll, n=None, feats=ALL_FEATURES):
+def chunked_features(ll, n=None, feats=ALL_FEATURES) -> pd.DataFrame:
 
     """Take a set of binary features per line, and return a chunked average.
 
@@ -581,7 +581,8 @@ def chunked_features(ll, n=None, feats=ALL_FEATURES):
     if not n:
         n = len(ll)
 
-    df = pd.DataFrame(map(lambda l: binary_features(l), ll), columns=BINARY_FEATURES)
+    # TODO rewrite map as list comp and test
+    df = pd.DataFrame(map(lambda l: binary_features(l), ll), columns=BINARY_FEATURES) #type: ignore
     if "ELC" in feats:
         df["ELC"] = [elision_count(l) for l in ll]
     return _chunk_mean(df[feats], n)

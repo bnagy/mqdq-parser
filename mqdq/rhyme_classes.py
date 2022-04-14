@@ -105,7 +105,7 @@ class Word:
     def get_color(self):
         last = self.post_stress[-1:]
         stress = self.stressed_syllable
-        if last:
+        if last and stress:
             last_vowel = last[-1].main_vowel
             color_idx = VOWEL_ORDER[last_vowel] * 6
             color_idx += VOWEL_ORDER[stress.main_vowel]
