@@ -128,7 +128,12 @@ def _line_matrix(l: rhyme_classes.Line) -> np.ndarray:
     Returns:
         numpy.ndarray: The result
     '''
-    ary = [_syl_meta(w) for w in l]
+    try:
+        ary = [_syl_meta(w) for w in l]
+    except Exception as e:
+        print("Problem with this line: %s" % l)
+        raise e
+
     mtrx = np.array(_flatten(ary))
     return mtrx.transpose()
 
