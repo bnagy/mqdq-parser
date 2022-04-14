@@ -143,7 +143,7 @@ def string_chunks(ll, chunksz=80, type="phon", drop_propers=True, min_proper_len
     if drop_propers:
         ll = _remove_propers(ll, type=type, min_proper_len=min_proper_len)
     else:
-        ll = _just_stringify(ll, type=type, min_proper_len=min_proper_len)
+        ll = _just_stringify(ll, type=type)
 
     chunks = list(la._chunks(ll, chunksz))
     if len(ll) % chunksz != 0:
