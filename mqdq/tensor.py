@@ -138,7 +138,7 @@ def _pad(m: np.ndarray, pad_left: int, pad_right: int) -> np.ndarray:
     post = np.zeros((4,pad_right-m.shape[1]))
     return np.concatenate([pre,m,post],axis=1)
 
-def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=20, pad_left: int=2) -> np.ndarray:
+def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=18, pad_left: int=2) -> np.ndarray:
     '''
     Convert an enumerable of rhyme.Lines to a tensor using +syl_meta+. The final
     tensor contains four layers, one layer for each of Onset, Nucleus, Coda and
@@ -148,17 +148,19 @@ def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=20, 
     Args:
         syl_lines (enum of rhyme.Line): Lines to operate on
 
-        pad_right (int): right pad with zeroes to this width. The final width
+        pad_right (int=18): right pad with zeroes to this width. The final width
             will be pad_left+pad_right. Note that pad_right must be >= the width
-            in syallables of the longest line in syl_lines.
+            in syallables of the longest line in syl_lines. Default: 18 (since
+            the longest legal hexameter line is 17 syllables, with the pattern
+            DDDDDS)
 
-        pad_left (int): left pad each layer with this many zeroes
+        pad_left (int=2): left pad each layer with this many zeroes
 
     Returns:
         numpy.ndarray: final shape (len(syl_lines), pad_left+pad_right, 4)
     '''
     mxx = [_line_matrix(l) for l in syl_lines]
-    longest = max([x.shape[1] for x in mxx])
+    longest = max([mx.shape[1] for mx in mxx])
     if longest > pad_right:
         raise ValueError("right pad width is less than longest line!")
 
@@ -168,7 +170,7 @@ def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=20, 
     # the only thing we can check here). We should add some left padding as well
     # so that the first syllable gets used more than once by the convolutional
     # layers.
-    mxx_padded = [_pad(x,pad_left,pad_right) for x in mxx]
+    mxx_padded = [_pad(mx,pad_left,pad_right) for mx in mxx]
     # each matrix above ^^ is now 4 x padded_width and represents one line, with
     # one row per layer (row 1 is onsets, row 2 is nuclei etc). Now concatenate
     # all the lines and split out each kind of row to form four layers (noset
