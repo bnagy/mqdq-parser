@@ -1,6 +1,8 @@
 from bs4 import BeautifulSoup
-from mqdq import rhyme
+from mqdq import rhyme, rhyme_classes
+from rhyme_classes import LineSet
 from mqdq import utils
+from utils import bookinate
 import random
 import copy
 import operator
@@ -11,9 +13,9 @@ import pandas as pd
 import functools
 import string
 import bisect
+from typing import Callable, Any, Optional
 
-
-def slant_leo(ll):
+def slant_leo(ll: LineSet) -> LineSet|None:
 
     if len(ll) != 1:
         raise ValueError("Need %s line." % 1)
@@ -62,7 +64,12 @@ slant_leo.name = "slant leo"    #type: ignore
 slant_leo.baseline = None       #type: ignore
 
 
-def build_filter(tups, length, name=None, baseline=None, cross=False):
+def build_filter(
+    tups: list[dict],
+    length: int,
+    name: Optional[str]=None,
+    baseline: Any='', # gross, but the type checker hates str|int for some reason
+    cross: bool=False) -> Callable[[LineSet],LineSet]:
     def filterfn(ll):
 
         if len(ll) != length:
@@ -89,14 +96,14 @@ def build_filter(tups, length, name=None, baseline=None, cross=False):
         return ll
 
     # Abusing function attributes a little, but it simplifies the API elsewhere.
-    filterfn.length = length
-    filterfn.cross = cross
+    filterfn.length = length            # type: ignore
+    filterfn.cross = cross              # type: ignore
     if name:
-        filterfn.name = name
-    if baseline != None:  # 0 is Falsey lol
+        filterfn.name = name            # type: ignore
+    if baseline != '':  # 0 is a possible arg which is Falsey lol
         # which entry in the +baseline+ we should use when working out
         # binomial stats
-        filterfn.baseline = baseline
+        filterfn.baseline = baseline    # type: ignore
 
     return filterfn
 
@@ -233,34 +240,6 @@ extended_tests = [
 ]
 
 
-def bookbabs(fn, name=None):
-    if not name:
-        name = fn
-    books = utils.bookinate(fn)
-    babs = []
-    for i, x in enumerate(books):
-        babs.append(Babbler(x, name="%s %d" % (name, i + 1)))
-    return babs
-
-
-def multibabs(fns, name):
-    if not fns:
-        raise ValueError("No filenames! (check your glob?)")
-    babs = []
-    for i, fn in enumerate(fns):
-        babs.append(Babbler.from_file(fn, name="%s %d" % (name, i + 1)))
-    return babs
-
-
-def multi_bookbabs(fns, name):
-    if not fns:
-        raise ValueError("No filenames! (check your glob?)")
-    babs = []
-    for i, fn in enumerate(fns):
-        babs += bookbabs(fn, name="%s %d" % (name, i + 1))
-    return babs
-
-
 EXAMINATE_COLS = [
     "H-aa -1",
     "H-aa -2",
@@ -286,8 +265,7 @@ EXAMINATE_COLS = [
     "P-slant leo",
 ]
 
-
-def _pivot(df):
+def _pivot(df: pd.DataFrame) -> pd.DataFrame:
     if df[df.metre == "P"].empty:
         # only hexameter, just double the width
         final = df.pivot(index="work", columns="test", values="pi")
@@ -303,49 +281,6 @@ def _pivot(df):
         )
     final.columns = cols
     return final
-
-
-def vectorise_books(fn, name):
-    babs = bookbabs(fn, name)
-    # +_pivot+ will sort the final rows in lexical order, so sort the sizes
-    # to match
-    sizes = [len(b.raw_source) for b in sorted(babs, key=lambda b: b.name)]
-    res = pd.DataFrame()
-    for b in babs:
-        res = pd.concat([res, b.examinate()], ignore_index=True)
-    final = _pivot(res)
-    final["size"] = sizes
-    return final, babs
-
-
-def vectorise_single(fn, name):
-    bab = Babbler.from_file(fn, name=name)
-    res = bab.examinate()
-    final = _pivot(res)
-    final["size"] = len(bab.raw_source)
-    return final, bab
-
-
-def vectorise_multi(fns, name):
-    babs = []
-    for i, fn in enumerate(fns):
-        babs.append(Babbler.from_file(fn, name="%s %d" % (name, i + 1)))
-    sizes = [len(b.raw_source) for b in sorted(babs, key=lambda b: b.name)]
-    res = pd.DataFrame()
-    for b in babs:
-        res = pd.concat([res, b.examinate()], ignore_index=True)
-    final = _pivot(res)
-    final["size"] = sizes
-    return final, babs
-
-
-def vectorise_lines(ll, name):
-    bab = Babbler(ll, name=name)
-    res = bab.examinate()
-    final = _pivot(res)
-    final["size"] = len(bab.raw_source)
-    return final, bab
-
 
 class Babbler:
     @classmethod
@@ -788,6 +723,7 @@ class Babbler:
     def examinate(self, tests=standard_tests, n=101, max_brute=5_000_000):
 
         res = []
+        r = pd.DataFrame()
         f = self.bootstrap_ci(*tests, n=n)
         for m, results in f.items():
             for idx, ci in enumerate(results):
@@ -847,7 +783,8 @@ class Babbler:
                 }
                 row.update(bs)
                 res.append(row)
-        return pd.DataFrame(res)
+        r = pd.DataFrame(res)
+        return r
 
     def vector(self):
         if self.elegiac:
@@ -1112,3 +1049,72 @@ class Babbler:
         final = _pivot(res)
         final["size"] = len(self.raw_source)
         return final
+
+# MODULE METHODS
+
+def bookbabs(fn: str, name: Optional[str]=None) -> list[Babbler]:
+    if not name:
+        name = fn
+    books = bookinate(fn)
+    babs = []
+    for i, x in enumerate(books):
+        babs.append(Babbler(x, name="%s %d" % (name, i + 1)))
+    return babs
+
+def multibabs(fns: list[str], name: Optional[str]=None) -> list[Babbler]:
+    if not fns:
+        raise ValueError("No filenames! (check your glob?)")
+    babs = []
+    for i, fn in enumerate(fns):
+        babs.append(Babbler.from_file(fn, name="%s %d" % (name, i + 1)))
+    return babs
+
+
+def multi_bookbabs(fns: list[str], name: Optional[str]=None) -> list[Babbler]:
+    if not fns:
+        raise ValueError("No filenames! (check your glob?)")
+    babs = []
+    for i, fn in enumerate(fns):
+        babs += bookbabs(fn, name="%s %d" % (name, i + 1))
+    return babs
+
+def vectorise_books(fn, name):
+    babs = bookbabs(fn, name)
+    # +_pivot+ will sort the final rows in lexical order, so sort the sizes
+    # to match
+    sizes = [len(b.raw_source) for b in sorted(babs, key=lambda b: b.name)]
+    res = pd.DataFrame()
+    for b in babs:
+        res = pd.concat([res, b.examinate()], ignore_index=True)
+    final = _pivot(pd.DataFrame(res)) # output from pd.concat might have been a Series
+    final["size"] = sizes
+    return final, babs
+
+def vectorise_single(fn, name):
+    bab = Babbler.from_file(fn, name=name)
+    res = bab.examinate()
+    final = _pivot(res)
+    final["size"] = len(bab.raw_source)
+    return final, bab
+
+
+def vectorise_multi(fns, name):
+    babs = []
+    for i, fn in enumerate(fns):
+        babs.append(Babbler.from_file(fn, name="%s %d" % (name, i + 1)))
+    sizes = [len(b.raw_source) for b in sorted(babs, key=lambda b: b.name)]
+    res = pd.DataFrame()
+    for b in babs:
+        res = pd.concat([res, b.examinate()], ignore_index=True)
+    final = _pivot(pd.DataFrame(res)) # output from pd.concat might have been a Series
+    final["size"] = sizes
+    return final, babs
+
+
+def vectorise_lines(ll, name):
+    bab = Babbler(ll, name=name)
+    res = bab.examinate()
+    final = _pivot(res)
+    final["size"] = len(bab.raw_source)
+    return final, bab
+
