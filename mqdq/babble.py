@@ -1,8 +1,8 @@
 from bs4 import BeautifulSoup
 from mqdq import rhyme, rhyme_classes
-from rhyme_classes import LineSet
+from mqdq.rhyme_classes import LineSet
 from mqdq import utils
-from utils import bookinate
+from mqdq.utils import bookinate
 import random
 import copy
 import operator
@@ -13,9 +13,9 @@ import pandas as pd
 import functools
 import string
 import bisect
-from typing import Callable, Any, Optional
+from typing import Callable, Any, Optional, Union
 
-def slant_leo(ll: LineSet) -> LineSet|None:
+def slant_leo(ll: LineSet) ->Union[LineSet,None]:
 
     if len(ll) != 1:
         raise ValueError("Need %s line." % 1)
