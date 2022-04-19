@@ -1,7 +1,8 @@
 import re
 import numpy as np
-from typing import Iterable, Mapping
+from typing import Iterable, Mapping, Callable
 from mqdq import rhyme, rhyme_classes
+from mqdq.rhyme_classes import Word, Line
 
 CONS_SPACE = {
     'p': 0.0,
@@ -56,7 +57,7 @@ def _locate(s: str, h: dict[str, float]) -> float:
         raise ValueError("Failed to locate %s somehow", s)
     return h[s]
 
-def _syl_meta(w: rhyme_classes.Word) -> list[list[float]]:
+def _syl_meta(w: Word) -> list[list[float]]:
     '''
     Convert a word into a List of Lists, one list per syllable. Each list
     contains a value for Onset, Nucleus, Coda and Prosody, which are all in
@@ -117,7 +118,7 @@ def _syl_meta(w: rhyme_classes.Word) -> list[list[float]]:
 def _flatten(t: Iterable) -> list:
     return [item for sublist in t for item in sublist]
     
-def _line_matrix(l: rhyme_classes.Line) -> np.ndarray:
+def _line_matrix(l: Line) -> np.ndarray:
     '''
     Produce a matrix from a rhyme.Line using +syl_meta+. The final array is 4 x
     num_syls.
@@ -138,12 +139,16 @@ def _line_matrix(l: rhyme_classes.Line) -> np.ndarray:
     return mtrx.transpose()
 
 # more efficient to break this out as a method so we can pad in a list comp.
-def _pad(m: np.ndarray, pad_left: int, pad_right: int) -> np.ndarray:
-    pre = np.zeros((4,pad_left))
-    post = np.zeros((4,pad_right-m.shape[1]))
+def _pad(m: np.ndarray, layers: int, pad_left: int, pad_right: int) -> np.ndarray:
+    pre = np.zeros((layers,pad_left))
+    post = np.zeros((layers,pad_right-m.shape[1]))
     return np.concatenate([pre,m,post],axis=1)
 
-def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=18, pad_left: int=2) -> np.ndarray:
+def lines_to_tensor(
+    syl_lines: Iterable[Line], 
+    line_mapper: Callable[[Line],np.ndarray]=_line_matrix, 
+    pad_right: int=18, 
+    pad_left: int=2) -> np.ndarray:
     '''
     Convert an enumerable of rhyme.Lines to a tensor using +syl_meta+. The final
     tensor contains four layers, one layer for each of Onset, Nucleus, Coda and
@@ -164,8 +169,9 @@ def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=18, 
     Returns:
         numpy.ndarray: final shape (len(syl_lines), pad_left+pad_right, 4)
     '''
-    mxx = [_line_matrix(l) for l in syl_lines]
+    mxx = [line_mapper(l) for l in syl_lines]
     longest = max([mx.shape[1] for mx in mxx])
+    n_layers = mxx[0].shape[0]
     if longest > pad_right:
         raise ValueError("right pad width is less than longest line!")
 
@@ -175,16 +181,16 @@ def lines_to_tensor(syl_lines: Iterable[rhyme_classes.Line], pad_right: int=18, 
     # the only thing we can check here). We should add some left padding as well
     # so that the first syllable gets used more than once by the convolutional
     # layers.
-    mxx_padded = [_pad(mx,pad_left,pad_right) for mx in mxx]
+    mxx_padded = [_pad(mx,n_layers,pad_left,pad_right) for mx in mxx]
     # each matrix above ^^ is now 4 x padded_width and represents one line, with
     # one row per layer (row 1 is onsets, row 2 is nuclei etc). Now concatenate
     # all the lines and split out each kind of row to form four layers (noset
     # layer, nucleus layer etc.)
     full_df = np.concatenate(mxx_padded)
     layers = []
-    for i in range(4):
-        # start at i, take every 4th row
-        layers.append(full_df[i::4].copy())
-    # finally, stack the four layers 'backwards' to make the final proto-tensor
-    # of shape lines (long) x pad_width (wide) x 4 (deep)
+    for i in range(n_layers):
+        # start at i, take every n_layers row
+        layers.append(full_df[i::n_layers].copy())
+    # finally, stack the n layers 'backwards' to make the final proto-tensor
+    # of shape lines (long) x pad_width (wide) x n_layers (deep)
     return np.stack(layers,axis=-1)
