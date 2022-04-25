@@ -1,8 +1,7 @@
-from collections import namedtuple, UserString, UserList
+from collections import UserList
 from dataclasses import dataclass
-from typing import List, Any
+from typing import List, Any, Union
 import bs4
-from bs4 import BeautifulSoup
 from mqdq import rhyme
 import seaborn as sns
 import copy
@@ -13,6 +12,12 @@ PALETTE = sns.hls_palette(55, s=0.5, l=0.65).as_hex()[:36]
 
 class Syl(str):
     def __init__(self, s, **kwargs):
+
+        self.onset: str
+        self.nucleus: str
+        self.coda: str
+        self.stressed: bool
+
         if s != "_":
             self.stressed = s[0] == "`"  # bool
             try:
@@ -21,7 +26,10 @@ class Syl(str):
                 else:
                     self.onset, self.nucleus, self.coda = rhyme.ONC.split(s)
 
-                if self.coda.startswith(("m", "n")) and not rhyme.COMBINING_TILDE in self.nucleus:
+                if (
+                    self.coda.startswith(("m", "n"))
+                    and not rhyme.COMBINING_TILDE in self.nucleus
+                ):
                     self.nucleus += rhyme.COMBINING_TILDE
 
             except Exception as e:
@@ -32,7 +40,7 @@ class Syl(str):
         super().__init__(**kwargs)
 
     @property
-    def main_vowel(self):
+    def main_vowel(self) -> str:
         if self.nucleus:
             return self.nucleus.translate(rhyme.DEMACRON).lower()[-1]
         return ""
@@ -46,42 +54,42 @@ class Word:
     mqdq: bs4.element.Tag
     color: str = ""
     best_match: float = 0.0
-    best_word: Any = None
+    best_word: "Word" | None = None  # refs to own class should be written as strings
     lock_color: bool = False
 
     # a copy should at least reset the color etc. This isn't perfect. If for example
     # someone expected to be able to make copies of Words before applying
     # line-level elision etc then they're going to be disappointed because
     # syls is a ref not a copy.
-    def __copy__(self):
+    def __copy__(self) -> "Word":
         return Word(self.pre_punct, self.syls, self.post_punct, self.mqdq)
 
     # quality of life shortcuts
     # return an empty string and not None so that
     # we can always safely do startswith and endswith
     @property
-    def wb(self):
+    def wb(self) -> str:
         try:
-            return self.mqdq["wb"]
+            return str(self.mqdq["wb"])
         except KeyError:
             return ""
 
     @property
-    def mf(self):
+    def mf(self) -> str:
         try:
-            return self.mqdq["mf"]
+            return str(self.mqdq["mf"])
         except KeyError:
             return ""
 
     @property
-    def mqdq_sy(self):
+    def mqdq_sy(self) -> str:
         try:
-            return self.mqdq["sy"]
+            return str(self.mqdq["sy"])
         except KeyError:
             return ""
 
     @property
-    def stress_idx(self):
+    def stress_idx(self) -> int:
         try:
             idx = next(i for i, v in enumerate(self.syls) if v.stressed)
         except StopIteration:
@@ -89,20 +97,20 @@ class Word:
         return idx
 
     @property
-    def stressed_syllable(self):
+    def stressed_syllable(self) -> Syl | None:
         try:
             return self.syls[self.stress_idx]
         except IndexError:
             return None
 
     @property
-    def post_stress(self):
+    def post_stress(self) -> list[Syl]:
         # python trix - this is safe even when the stress is
         # on the final syllable because the slice will be an
         # empty list
         return self.syls[self.stress_idx + 1 :]
 
-    def get_color(self):
+    def get_color(self) -> str:
         last = self.post_stress[-1:]
         stress = self.stressed_syllable
         if last and stress:
@@ -112,7 +120,7 @@ class Word:
         elif stress:
             color_idx = VOWEL_ORDER[stress.main_vowel] * 6
         else:
-            return None
+            return ""
 
         return PALETTE[color_idx]
 
@@ -127,7 +135,7 @@ class Line(UserList):
         return Line([copy.copy(w) for w in self.words], self.metre)
 
     @property
-    def midword(self):
+    def midword(self) -> Word | None:
         mid = [
             w
             for w in self.words
@@ -141,14 +149,14 @@ class Line(UserList):
         else:
             return mid[0]
 
-    def fetch(self, pos):
+    def fetch(self, pos: int) -> Word | None:
         if pos == "mid":
             return self.midword
         else:
             return self[pos]
 
     @property
-    def midword_idx(self):
+    def midword_idx(self) -> int | None:
         for i, w in enumerate(self.words):
             if w.mqdq_sy.endswith("3A"):
                 # this will always trigger first, so if we have
@@ -159,7 +167,7 @@ class Line(UserList):
         return None
 
     @property
-    def antepenult(self):
+    def antepenult(self) -> Word | None:
         if self.midword_idx and self.midword_idx + 3 >= len(self):
             return None
         if len(self) < 6:
@@ -168,7 +176,7 @@ class Line(UserList):
 
 
 class LineSet(UserList):
-    def __copy__(self):
+    def __copy__(self) -> "LineSet":
         return LineSet([copy.copy(l) for l in self.data])
 
     def clean(self):
@@ -179,9 +187,10 @@ class LineSet(UserList):
                 w.best_word = None
                 w.color = ""
 
+    CONF_T = dict[Union[int, str], list[tuple[Union[int, str], int]]]
     # pos1 has an array of (pos2, lim) where pos2 is the position to rhyme
     # and lim is how far ahead to look at most when linking
-    BASIC_VERTICAL = {
+    BASIC_VERTICAL: CONF_T = {
         # endwords rhyme with endwords OR mids in the same line
         -1: [("mid", 0), (-1, 3)],
         -2: [(-2, 3)],
@@ -196,17 +205,19 @@ class LineSet(UserList):
     }
 
     def link(
-        self, config=BASIC_VERTICAL, thresh=rhyme.GLOBAL_RHYME_THRESH, preserve=False
+        self,
+        config: CONF_T = BASIC_VERTICAL,
+        thresh: float = rhyme.GLOBAL_RHYME_THRESH,
+        preserve: bool = False,
     ):
 
-        # Link words in a LineSet that rhyme. Positions to compare
-        # are set out in the config dict. All words which rhyme above
-        # the given threshold are linked.
+        # Link words in a LineSet that rhyme. Positions to compare are set out
+        # in the config dict. All words which rhyme above the given threshold
+        # are linked.
 
         for li, first_l in enumerate(self.data):
             for pos1 in config.keys():
                 w1 = first_l.fetch(pos1)
-                matches = []
                 if not w1:
                     continue
                 for lj, second_l in enumerate(self.data[li:]):
@@ -226,12 +237,11 @@ class LineSet(UserList):
                                         w2.best_match = s
                                         w2.best_word = w1
                                 else:
-                                    # only link clean words. This will not
-                                    # be optimal a lot of the time. The idea
-                                    # is that custom markfuncs might link and
-                                    # score weird positions and we want those
-                                    # to stay lit, even if a 'normal' match is
-                                    # better
+                                    # only link clean words. This will not be
+                                    # optimal a lot of the time. The idea is
+                                    # that custom markfuncs might link and score
+                                    # weird positions and we want those to stay
+                                    # lit, even if a 'normal' match is better
                                     if w1.best_match == 0:
                                         w1.best_match = s
                                         w1.best_word = w2
@@ -254,10 +264,9 @@ class LineSet(UserList):
                 if w.best_word:
                     rhymeset = [w, w.best_word]
                     next_w = w.best_word.best_word
-                    # follow the best-word matches for each word in
-                    # this rhyme group (words that all kind of rhyme).
-                    # when we find the best one of all, use that to
-                    # colour the rest.
+                    # follow the best-word matches for each word in this rhyme
+                    # group (words that all kind of rhyme). when we find the
+                    # best one of all, use that to colour the rest.
                     for x in range(10):
                         if not any(id(y) == id(next_w) for y in rhymeset):
                             rhymeset.append(next_w)
@@ -273,9 +282,9 @@ class LineSet(UserList):
                         if preserve and w.lock_color:
                             pass
                         else:
-                            # if something in the set is locked then all words should
-                            # copy that colour (to keep them matching) since they can't
-                            # change it.
+                            # if something in the set is locked then all words
+                            # should copy that colour (to keep them matching)
+                            # since they can't change it.
                             colorfrom = next(
                                 (w for w in rhymeset if w.lock_color), rhymeset[0]
                             )
@@ -288,14 +297,18 @@ class LineSet(UserList):
             rhyme._restore_prodelision(self.data[i], stashed_prod)
 
     def colorlink(
-        self, config=BASIC_VERTICAL, thresh=rhyme.GLOBAL_RHYME_THRESH, preserve=False
+        self,
+        config: CONF_T = BASIC_VERTICAL,
+        thresh: float = rhyme.GLOBAL_RHYME_THRESH,
+        preserve=False,
     ):
         self.link(config, thresh, preserve)
         self.color(preserve)
 
     # 20/9/21 for v0.6.0 Added initial words to the rhyme scoring and linking
 
-    END_BIAS = {
+    RHYME_CONF_T = dict[str, float]
+    END_BIAS: RHYME_CONF_T = {
         "first_count": 1.0,
         "first_score": 0.5,
         "ult_count": 1.2,
@@ -310,7 +323,7 @@ class LineSet(UserList):
         "score_exponent": 2.4,
     }
 
-    END_RHYMES = {
+    END_RHYMES: RHYME_CONF_T = {
         "first_count": 0.0,
         "first_score": 0.0,
         "ult_count": 1.0,
@@ -325,7 +338,7 @@ class LineSet(UserList):
         "score_exponent": 2.4,
     }
 
-    MID_RHYMES = {
+    MID_RHYMES: RHYME_CONF_T = {
         "first_count": 0.0,
         "first_score": 0.0,
         "ult_count": 0.0,
@@ -340,7 +353,7 @@ class LineSet(UserList):
         "score_exponent": 2.4,
     }
 
-    NEUTRAL = {
+    NEUTRAL: RHYME_CONF_T = {
         "first_count": 1.0,
         "first_score": 1.0,
         "ult_count": 1.0,
@@ -355,13 +368,13 @@ class LineSet(UserList):
         "score_exponent": 2.4,
     }
 
-    def score(self, config=END_BIAS, lim=3):
+    def score(self, config: RHYME_CONF_T = END_BIAS, lim: int = 3) -> float:
 
-        # For a linked set of lines, every word that is involved in a rhyme
-        # will have a `best_match`. This method calculates a score based on
-        # the config dict which adjusts the weights for rhymes in various
-        # positions, the _number_ of rhymes versus the raw scores and a
-        # configurable exponent (to give the scores more spread if desired).
+        # For a linked set of lines, every word that is involved in a rhyme will
+        # have a `best_match`. This method calculates a score based on the
+        # config dict which adjusts the weights for rhymes in various positions,
+        # the _number_ of rhymes versus the raw scores and a configurable
+        # exponent (to give the scores more spread if desired).
 
         count = 0.0
         score = 0.0
@@ -388,10 +401,10 @@ class LineSet(UserList):
                 ]
             if l[-1].color:
                 count += 1 * config["ult_count"]
-                # endwords might match mids as well, so recalculate the best match
-                # for the purposes of scoring, but DON'T recolor. This is all so we
-                # can use the correct "best match" when we weight for mid_score vs
-                # end_score
+                # endwords might match mids as well, so recalculate the best
+                # match for the purposes of scoring, but DON'T recolor. This is
+                # all so we can use the correct "best match" when we weight for
+                # mid_score vs end_score
                 end_rhymes = [0.0]
                 # slicing past the end is safe in python
                 for (idx2, l2) in enumerate(self.data[idx - lim : idx + lim + 1]):
