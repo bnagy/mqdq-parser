@@ -51,9 +51,9 @@ def grep(soup: BeautifulSoup, s: str) -> list[Tag]:
 
 
 def blat(
-    ll,
-    scan=True,
-    phon=False,
+    ll: list[Tag],
+    scan: bool = False,
+    phon: bool = False,
     number_with=None,
 ):
 
@@ -72,16 +72,15 @@ def blat(
         Nothing (the lines are printed)
     """
 
-    # if they give us just one line instead of wrapping it
-    # in a list as they should then be nice to them
-    if ll.__class__ == Tag:
-        ll = [ll]
-
     print("\n\n".join([txt(l, scan, phon, number_with) for l in ll]))
 
 
 def blatsave(
-    ll, fn: str, scan=True, phon=False, number_with: Optional[BeautifulSoup] = None
+    ll: list[Tag],
+    fn: str,
+    scan: bool = False,
+    phon: bool = False,
+    number_with: Optional[BeautifulSoup] = None,
 ):
 
     """
@@ -102,10 +101,6 @@ def blatsave(
         Returns:
             Nothing (the lines are written)
     """
-    # if they give us just one line instead of wrapping it
-    # in a list as they should then be nice to them
-    if ll.__class__ == Tag:
-        ll = [ll]
 
     with open(fn, "w") as fh:
         fh.write("\n\n".join([txt(l, scan, phon, number_with) for l in ll]))
@@ -113,8 +108,8 @@ def blatsave(
 
 def txt(
     l: Tag,
-    scan=False,
-    phon=False,
+    scan: bool = False,
+    phon: bool = False,
     number_with: Optional[BeautifulSoup] = None,
 ) -> str:
 
@@ -209,7 +204,11 @@ def _align(*ll: list[str]) -> str:
 
 
 def txt_and_number(
-    ll: list[Tag], every: int = 5, scan=False, phon=False, start_at: int = 1
+    ll: list[Tag],
+    every: int = 5,
+    scan: bool = False,
+    phon: bool = False,
+    start_at: int = 1,
 ) -> list[str]:
 
     """
@@ -420,9 +419,9 @@ def _make_d(
     ll: list[Line],
     font: str = "Times",
     size: str = "small",
-    indent=True,
-    book=False,
-    line=False,
+    indent: bool = True,
+    book: bool = False,
+    line: bool = False,
 ) -> dominate.document:
     d = dominate.document()
     for l in ll:
@@ -430,5 +429,5 @@ def _make_d(
     return d
 
 
-def nbshow(ll: list[Line], indent=True, book=False, line=False):
+def nbshow(ll: list[Line], indent: bool = True, book: bool = False, line: bool = False):
     _bloop(_make_d(ll, "Envy Code R", "medium", indent, book, line))
