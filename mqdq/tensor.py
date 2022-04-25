@@ -1,7 +1,7 @@
 import re
 import numpy as np
-from typing import Iterable, Mapping, Callable
-from mqdq import rhyme, rhyme_classes
+from typing import Iterable, Callable
+from mqdq import rhyme
 from mqdq.rhyme_classes import Word, Line
 
 CONS_SPACE = {
@@ -153,7 +153,6 @@ def loose_layers(l: Line) -> np.ndarray:
         np.ndarray: the result.
     """
     final = []
-    meta = 0
     nuc = ""
     onset = ""
     cf = syn = long = pause = 0b0
@@ -165,13 +164,10 @@ def loose_layers(l: Line) -> np.ndarray:
             # empty syllables (lost by elision) which can appear in my +syls+ List
             # in the Word object.
 
-            # if int(s[0]) > 6:
-            #     # hypermetrics happen but they're so rare I'm just truncating
-            #     break
             if s[1] != "c":
-                # we lose the onset of the second breve in uu so that metron is
-                # the onset of the first, then both vowels then the coda of the
-                # second.
+                # we lose the onset of the second breve in uu. That metron
+                # becomes the onset of the first, then both vowels then the coda
+                # of the second.
                 onset = w.syls[i].onset.translate(rhyme.DEFANCY).lower()
             if (s[1] == "A" and not i == w.stress_idx) or (
                 i == w.stress_idx and not s[1] == "A"
@@ -193,7 +189,7 @@ def loose_layers(l: Line) -> np.ndarray:
                     elif w.mqdq["wb"] == "CF":
                         pause |= 0b1
                 if w.mf == "SY":
-                    # Elision
+                    # Elision aka synalepha
                     syn = 0b1
 
             nuc += w.syls[i].nucleus.translate(rhyme.DEFANCY).lower()
