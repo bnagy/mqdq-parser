@@ -35,12 +35,12 @@ def grep(soup: BeautifulSoup, s: str) -> list[Tag]:
 
     Args:
         soup (bs4 soup): The text in which to search
-        s (string): String to search for. This will be converted
+        s (str): String to search for. This will be converted
                     into a regular expression, so re characters
                     are allowed.
 
     Returns:
-        (list): a list of matching bs4 <line>s
+        list[bs4.element.Tag]: a list of matching bs4 <line>s
     """
 
     # TODO this is word by word only! Rewrite to get some kind of
@@ -90,7 +90,7 @@ def blatsave(
 
     Args:
         ll (list of bs4 <line>): Lines to write
-        fn (String): filename to write to
+        fn (str): filename to write to
         scan (bool, default=False): Include scansion codes
         phon (bool, default=False): Include phonetic transcription
         number_with (bs4 soup): If provided, text will be numbered by finding the lines
@@ -125,7 +125,7 @@ def txt(
                                 8:196> Caede tepebat humus, foribusque affixa  superbis
                                        1A'1b 1c2A'2b 2c'3A  3b3c4A'_   4T5A'5b 5c6A'6X WSQ
     Returns:
-        (string): The result. Because of the internal de-duping, the results are not sorted.
+        str: The result. Because of the internal de-duping, the results are not sorted.
     """
 
     try:
@@ -224,7 +224,7 @@ def txt_and_number(
         start_at (int, default=1): Where to start the numbering
 
     Returns:
-        (string): The result
+        str: The result
     """
 
     # the string length of the highest line number (100==3)
@@ -277,7 +277,7 @@ def bookref(l: Tag, soup: BeautifulSoup) -> Union[str, None]:
         soup (bs4 soup): Text to use for the numbering
 
     Returns:
-        (string): The reference, eg 6:825 or None
+        str: The reference, eg 6:825 or None
     """
 
     b = which_book(l, soup)
