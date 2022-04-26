@@ -54,7 +54,9 @@ class Word:
     mqdq: bs4.element.Tag
     color: str = ""
     best_match: float = 0.0
-    best_word: "Word" | None = None  # refs to own class should be written as strings
+    best_word: Union[
+        "Word", None
+    ] = None  # refs to own class should be written as strings
     lock_color: bool = False
 
     # a copy should at least reset the color etc. This isn't perfect. If for example
