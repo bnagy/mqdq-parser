@@ -31,16 +31,16 @@ def slup(fn: str) -> tuple[BeautifulSoup, list[Tag]]:
 def grep(soup: BeautifulSoup, s: str) -> list[Tag]:
 
     """
-    Case insensitive grep on the text contents of bs4 soup object.
+    Case insensitive grep on the text contents of BeautifulSoup object.
 
     Args:
-        soup (bs4 soup): The text in which to search
+        soup (BeautifulSoup): The text in which to search
         s (str): String to search for. This will be converted
                     into a regular expression, so re characters
                     are allowed.
 
     Returns:
-        list[bs4.element.Tag]: a list of matching bs4 <line>s
+        list[bs4.element.Tag]: a list of matching bs4.element.Tags
     """
 
     # TODO this is word by word only! Rewrite to get some kind of
@@ -61,10 +61,10 @@ def blat(
     Quickly print the text of a set of lines to screen
 
     Args:
-        ll (list of bs4 <line>): Lines to print
+        ll (list of bs4.element.Tag): Lines to print
         scan (bool, default=False): Include scansion codes
         phon (bool, default=False): Include phonetic transcription
-        number_with (bs4 soup): If provided, text will be numbered by finding the lines
+        number_with (BeautifulSoup): If provided, text will be numbered by finding the lines
                                 in that bs4 object (WARNING! Can be slow!):
                                 8:196> Caede tepebat humus, foribusque affixa  superbis
                                        1A'1b 1c2A'2b 2c'3A  3b3c4A'_   4T5A'5b 5c6A'6X
@@ -89,11 +89,11 @@ def blatsave(
     Exceptions are left to the caller.
 
     Args:
-        ll (list of bs4 <line>): Lines to write
+        ll (list of bs4.element.Tag): Lines to write
         fn (str): filename to write to
         scan (bool, default=False): Include scansion codes
         phon (bool, default=False): Include phonetic transcription
-        number_with (bs4 soup): If provided, text will be numbered by finding the lines
+        number_with (BeautifulSoup): If provided, text will be numbered by finding the lines
                                 in that bs4 object (WARNING! Can be slow!):
                                 8:196> Caede tepebat humus, fo
                                        1A'1b 1c2A'2b 2c'3A  3b3c4A'_   4T5A'5b 5c6A'6X
@@ -117,10 +117,10 @@ def txt(
     Extract the text from a (single) line.
 
     Args:
-        l (bs4 <line>): Line to operate on
+        l (bs4.element.Tag): Line to operate on
         scan (bool, default=False): Include scansion codes
         phon (bool, default=False): Include phonetic transcription
-        number_with (bs4 soup): If provided, text will be numbered by finding the lines
+        number_with (BeautifulSoup): If provided, text will be numbered by finding the lines
                                 in that bs4 object (WARNING! Can be slow!):
                                 8:196> Caede tepebat humus, foribusque affixa  superbis
                                        1A'1b 1c2A'2b 2c'3A  3b3c4A'_   4T5A'5b 5c6A'6X WSQ
@@ -217,7 +217,7 @@ def txt_and_number(
     extract. Use `txt` if you want to add book refs to the result of a search or a random sample.
 
     Args:
-        ll (list of bs4 <line>): Lines to operate on
+        ll (list of bs4.element.Tag): Lines to operate on
         every (int, default=5): How often to add numbers
         scan (bool, default=False): Include scansion codes
         phon (bool, default=False): Include phonetic transcription
@@ -246,14 +246,15 @@ def txt_and_number(
 def which_book(l: Tag, soup: BeautifulSoup) -> Union[str, None]:
 
     """
-    Determine which book in a bs4 soup contains a given line.
+    Determine which book in a BeautifulSoup contains a given line.
 
     Args:
-        l (bs4 <line>): Line to check
-        soup (bs4 soup): Soup to check in
+        l (bs4.element.Tag): Line to check
+        soup (BeautifulSoup): Soup to check in
 
     Returns:
-        str: The string index of the first 'division' containing l (0-based) or None
+        str: The string title (usually a number) of the first 'division'
+        containing l (0-based) or None
     """
 
     for d in soup("division"):
@@ -262,9 +263,12 @@ def which_book(l: Tag, soup: BeautifulSoup) -> Union[str, None]:
     return None
 
 
-def by_ref(bn: int, ln: int, soup: BeautifulSoup) -> Tag:
-    b = soup("division")[bn - 1]
-    return b("line")[ln - 1]
+def by_ref(bn: int, ln: int, soup: BeautifulSoup) -> Union[Tag, None]:
+    try:
+        b = soup("division")[bn - 1]
+        return b("line")[ln - 1]
+    except IndexError:
+        return None
 
 
 def bookref(l: Tag, soup: BeautifulSoup) -> Union[str, None]:
@@ -273,8 +277,8 @@ def bookref(l: Tag, soup: BeautifulSoup) -> Union[str, None]:
     Return a formatted reference book:line for a given line and text.
 
     Args:
-        l (bs4 <line>): Line to use
-        soup (bs4 soup): Text to use for the numbering
+        l (bs4.element.Tag): Line to use
+        soup (BeautifulSoup): Text to use for the numbering
 
     Returns:
         str: The reference, eg 6:825 or None
@@ -302,7 +306,7 @@ def bookrange(ll: list[Tag], soup: BeautifulSoup) -> str:
 def clean(ll: list[Tag]) -> list[Tag]:
 
     """
-    Remove all corrupt lines from a list of bs4 <line>s
+    Remove all corrupt lines from a list of MQDQ bs4 lines
 
     Args:
         ll (list[bs4.element.Tag]): Lines to clean
@@ -320,20 +324,14 @@ def clean(ll: list[Tag]) -> list[Tag]:
     ]
 
 
-def indices_to_bookref(soup, rr):
+def indices_to_bookref(soup: BeautifulSoup, rr: list[int]):
 
     # parsing the soup is slow, so do it once
-    cumsums = np.cumsum([len(d("line")) for d in soup("division")])
-    # allow single refs as rr, with some hackery
-    try:
-        i = iter(rr)
-    except TypeError:
-        rr = [rr]
-
+    cumsums = list(np.cumsum([len(d("line")) for d in soup("division")]))
     res = []
     for ref in rr:
         # finds leftmost value greater than idx
-        insert_at = bisect.bisect_right(cumsums, ref)  # type: ignore
+        insert_at = bisect.bisect_right(cumsums, ref)
         if insert_at >= len(cumsums):
             raise IndexError("Line index out of range")
         br = insert_at + 1
