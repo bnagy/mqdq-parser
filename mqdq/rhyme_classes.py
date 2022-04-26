@@ -99,7 +99,7 @@ class Word:
         return idx
 
     @property
-    def stressed_syllable(self) -> Syl | None:
+    def stressed_syllable(self) -> Union[Syl, None]:
         try:
             return self.syls[self.stress_idx]
         except IndexError:
@@ -137,7 +137,7 @@ class Line(UserList):
         return Line([copy.copy(w) for w in self.words], self.metre)
 
     @property
-    def midword(self) -> Word | None:
+    def midword(self) -> Union[Word, None]:
         mid = [
             w
             for w in self.words
@@ -151,7 +151,7 @@ class Line(UserList):
         else:
             return mid[0]
 
-    def fetch(self, pos: int) -> Word | None:
+    def fetch(self, pos: int) -> Union[Word, None]:
         if pos == "mid":
             return self.midword
         else:
@@ -169,7 +169,7 @@ class Line(UserList):
         return None
 
     @property
-    def antepenult(self) -> Word | None:
+    def antepenult(self) -> Union[Word, None]:
         if self.midword_idx and self.midword_idx + 3 >= len(self):
             return None
         if len(self) < 6:
