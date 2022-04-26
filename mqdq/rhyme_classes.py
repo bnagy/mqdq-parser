@@ -158,7 +158,7 @@ class Line(UserList):
             return self[pos]
 
     @property
-    def midword_idx(self) -> int | None:
+    def midword_idx(self) -> Union[int, None]:
         for i, w in enumerate(self.words):
             if w.mqdq_sy.endswith("3A"):
                 # this will always trigger first, so if we have
