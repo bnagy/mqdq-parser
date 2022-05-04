@@ -21,13 +21,6 @@ DEFANCY = str.maketrans(
 )
 
 
-def slup(fn: str) -> tuple[BeautifulSoup, list[Tag]]:
-    with open(fn) as fh:
-        soup = bs4.BeautifulSoup(fh, "xml")
-        ll = clean(soup("line"))
-    return soup, ll
-
-
 def grep(soup: BeautifulSoup, s: str) -> list[Tag]:
 
     """
@@ -324,23 +317,23 @@ def clean(ll: list[Tag]) -> list[Tag]:
     ]
 
 
-def indices_to_bookref(soup: BeautifulSoup, rr: list[int]):
+def indices_to_bookref(soup: BeautifulSoup, rr: list[int]) -> list[tuple[int, int]]:
 
-    # parsing the soup is slow, so do it once
+    # parsing the soup is slow, so do it once.
+    # get the starting points of each book
     cumsums = list(np.cumsum([len(d("line")) for d in soup("division")]))
     res = []
     for ref in rr:
-        # finds leftmost value greater than idx
+        # finds leftmost start value greater than idx
         insert_at = bisect.bisect_right(cumsums, ref)
         if insert_at >= len(cumsums):
             raise IndexError("Line index out of range")
         br = insert_at + 1
         lr = ref
         if insert_at > 0:
+            # line idx in book is overall idx - start_of_book idx
             lr = lr - cumsums[insert_at - 1]
         res.append((br, lr))
-    if len(res) == 1:
-        return res[0]
     return res
 
 

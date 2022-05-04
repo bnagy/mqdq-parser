@@ -1,4 +1,5 @@
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 from mqdq import rhyme, rhyme_classes
 from mqdq.rhyme_classes import LineSet
 from mqdq import utils
@@ -15,7 +16,8 @@ import string
 import bisect
 from typing import Callable, Any, Optional, Union
 
-def slant_leo(ll: LineSet) ->Union[LineSet,None]:
+
+def slant_leo(ll: LineSet) -> Union[LineSet, None]:
 
     if len(ll) != 1:
         raise ValueError("Need %s line." % 1)
@@ -59,17 +61,18 @@ def slant_leo(ll: LineSet) ->Union[LineSet,None]:
 
 # add an attribute to the function to track the number of
 # lines it expects. Simplifies the API elsewhere.
-slant_leo.length = 1            #type: ignore
-slant_leo.name = "slant leo"    #type: ignore
-slant_leo.baseline = None       #type: ignore
+slant_leo.length = 1  # type: ignore
+slant_leo.name = "slant leo"  # type: ignore
+slant_leo.baseline = None  # type: ignore
 
 
 def build_filter(
     tups: list[dict],
     length: int,
-    name: Optional[str]=None,
-    baseline: Any='', # gross, but the type checker hates str|int for some reason
-    cross: bool=False) -> Callable[[LineSet],LineSet]:
+    name: Optional[str] = None,
+    baseline: Any = "",  # gross, but the type checker hates str|int for some reason
+    cross: bool = False,
+) -> Callable[[LineSet], LineSet]:
     def filterfn(ll):
 
         if len(ll) != length:
@@ -96,14 +99,14 @@ def build_filter(
         return ll
 
     # Abusing function attributes a little, but it simplifies the API elsewhere.
-    filterfn.length = length            # type: ignore
-    filterfn.cross = cross              # type: ignore
+    filterfn.length = length  # type: ignore
+    filterfn.cross = cross  # type: ignore
     if name:
-        filterfn.name = name            # type: ignore
-    if baseline != '':  # 0 is a possible arg which is Falsey lol
+        filterfn.name = name  # type: ignore
+    if baseline != "":  # 0 is a possible arg which is Falsey lol
         # which entry in the +baseline+ we should use when working out
         # binomial stats
-        filterfn.baseline = baseline    # type: ignore
+        filterfn.baseline = baseline  # type: ignore
 
     return filterfn
 
@@ -265,6 +268,7 @@ EXAMINATE_COLS = [
     "P-slant leo",
 ]
 
+
 def _pivot(df: pd.DataFrame) -> pd.DataFrame:
     if df[df.metre == "P"].empty:
         # only hexameter, just double the width
@@ -282,21 +286,24 @@ def _pivot(df: pd.DataFrame) -> pd.DataFrame:
     final.columns = cols
     return final
 
+
 class Babbler:
     @classmethod
-    def from_file(cls, *fns, name=None):
+    def from_file(cls, *fns, name=None, author=None):
 
         raw_source = []
         for fn in fns:
-            _, ll = utils.slup(fn)
+            _, ll = utils.slurp(fn)
             raw_source += ll
 
         if not name:
             name = fns[0]
 
-        return cls(raw_source, name)
+        return cls(raw_source, name, author)
 
-    def __init__(self, ll, name=None):
+    def __init__(
+        self, ll: list[Tag], name: Optional[str] = None, author: Optional[str] = None
+    ):
 
         source_h = [l for l in ll if l["metre"] == "H"]
         source_p = [l for l in ll if l["metre"] == "P"]
@@ -304,6 +311,8 @@ class Babbler:
         self.source_p = self.preprocess(source_p)
         self.raw_source = ll
         self.name = name
+        self.author = author
+        # hack!
         self.elegiac = bool(self.source_p)
 
     def __len__(self):
@@ -848,7 +857,7 @@ class Babbler:
         simulations = [None] * n
         for c in range(n):
             simulations[c] = f(m)
-        simulations.sort() #type: ignore
+        simulations.sort()  # type: ignore
 
         def ci(p):
             """
@@ -967,10 +976,10 @@ class Babbler:
             elif m == "H":
                 # otherwise we just use only either H or P and compare within that set
                 bl = self._brute_or_sim(h, max_brute=max_brute)
-                adj = h_adjust ** 2
+                adj = h_adjust**2
             elif m == "P":
                 bl = self._brute_or_sim(p, max_brute=max_brute)
-                adj = p_adjust ** 2
+                adj = p_adjust**2
             else:
                 raise ValueError("Can't handle metre '%s'" % m)
 
@@ -1050,9 +1059,11 @@ class Babbler:
         final["size"] = len(self.raw_source)
         return final
 
+
 # MODULE METHODS
 
-def bookbabs(fn: str, name: Optional[str]=None) -> list[Babbler]:
+
+def bookbabs(fn: str, name: Optional[str] = None) -> list[Babbler]:
     if not name:
         name = fn
     books = bookinate(fn)
@@ -1061,7 +1072,8 @@ def bookbabs(fn: str, name: Optional[str]=None) -> list[Babbler]:
         babs.append(Babbler(x, name="%s %d" % (name, i + 1)))
     return babs
 
-def multibabs(fns: list[str], name: Optional[str]=None) -> list[Babbler]:
+
+def multibabs(fns: list[str], name: Optional[str] = None) -> list[Babbler]:
     if not fns:
         raise ValueError("No filenames! (check your glob?)")
     babs = []
@@ -1070,7 +1082,7 @@ def multibabs(fns: list[str], name: Optional[str]=None) -> list[Babbler]:
     return babs
 
 
-def multi_bookbabs(fns: list[str], name: Optional[str]=None) -> list[Babbler]:
+def multi_bookbabs(fns: list[str], name: Optional[str] = None) -> list[Babbler]:
     if not fns:
         raise ValueError("No filenames! (check your glob?)")
     babs = []
@@ -1078,17 +1090,19 @@ def multi_bookbabs(fns: list[str], name: Optional[str]=None) -> list[Babbler]:
         babs += bookbabs(fn, name="%s %d" % (name, i + 1))
     return babs
 
+
 def vectorise_books(fn, name):
     babs = bookbabs(fn, name)
     # +_pivot+ will sort the final rows in lexical order, so sort the sizes
     # to match
-    sizes = [len(b.raw_source) for b in sorted(babs, key=lambda b: b.name)]
+    sizes = [len(b.raw_source) for b in sorted(babs, key=lambda b: str(b.name))]
     res = pd.DataFrame()
     for b in babs:
         res = pd.concat([res, b.examinate()], ignore_index=True)
-    final = _pivot(pd.DataFrame(res)) # output from pd.concat might have been a Series
+    final = _pivot(pd.DataFrame(res))  # output from pd.concat might have been a Series
     final["size"] = sizes
     return final, babs
+
 
 def vectorise_single(fn, name):
     bab = Babbler.from_file(fn, name=name)
@@ -1106,7 +1120,7 @@ def vectorise_multi(fns, name):
     res = pd.DataFrame()
     for b in babs:
         res = pd.concat([res, b.examinate()], ignore_index=True)
-    final = _pivot(pd.DataFrame(res)) # output from pd.concat might have been a Series
+    final = _pivot(pd.DataFrame(res))  # output from pd.concat might have been a Series
     final["size"] = sizes
     return final, babs
 
@@ -1117,4 +1131,3 @@ def vectorise_lines(ll, name):
     final = _pivot(res)
     final["size"] = len(bab.raw_source)
     return final, bab
-

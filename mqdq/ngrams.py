@@ -10,7 +10,7 @@ import string
 import math
 
 DEPUNCT = str.maketrans("", "", string.punctuation)
-DEFANCY = str.maketrans({"ü": "y", u"\u0304": None, u"\u0303": None, "`": None})
+DEFANCY = str.maketrans({"ü": "y", "\u0304": None, "\u0303": None, "`": None})
 
 
 def _remove_propers(ll, type="phon", min_proper_len=4):
@@ -204,7 +204,7 @@ def geezit_corpus(
             puni_refs = [
                 "%d:%d" % tupl
                 for tupl in utils.indices_to_bookref(
-                    soup, np.concatenate((good_indices, shifted_indices))
+                    soup, list(np.concatenate((good_indices, shifted_indices)))
                 )
             ]
             # build the Punica temp frame
@@ -242,7 +242,7 @@ def geezit_corpus(
         tmpdf["Bookref"] = [
             "%d:%d" % tupl
             for tupl in utils.indices_to_bookref(
-                soup, (np.arange(len(chunks)) * chunksz) + 1
+                soup, list((np.arange(len(chunks)) * chunksz) + 1)
             )
         ]
         df = df.append(tmpdf).reset_index(drop=True)
