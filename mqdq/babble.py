@@ -289,7 +289,7 @@ def _pivot(df: pd.DataFrame) -> pd.DataFrame:
 
 class Babbler:
     @classmethod
-    def from_file(cls, *fns, name=None, author=None):
+    def from_file(cls, *fns: str, name: str = "", author: str = ""):
 
         raw_source = []
         for fn in fns:
