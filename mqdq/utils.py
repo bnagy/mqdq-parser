@@ -3,7 +3,8 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 import re
 import numpy as np
-from typing import Optional, Union
+import pandas as pd
+from typing import Optional, Union, cast
 from mqdq import line_analyzer as la
 from mqdq import rhyme
 from mqdq.rhyme_classes import Line
@@ -335,6 +336,47 @@ def indices_to_bookref(soup: BeautifulSoup, rr: list[int]) -> list[tuple[int, in
             lr = lr - cumsums[insert_at - 1]
         res.append((br, lr))
     return res
+
+
+def chunk_lines(
+    ll: list[Tag],
+    sz: int,
+    step: int,
+    name: str = "",
+    author: str = "",
+    strict: bool = True,
+) -> pd.DataFrame:
+    if step > sz:
+        raise ValueError("Step cannot be greater than chunksize.")
+    chunk_ary = []
+    br_ary = []
+    for idx in range(0, len(ll) - step, step):
+        chunk = ll[idx : idx + sz]
+        if len(chunk) < sz and strict:
+            break
+        chunk_ary.append(chunk)
+        try:
+            # apparently impossible to convince Pylance that I'm dealing with
+            # the possibility that parent name might not exist
+            if ll[idx].parent.name == "division":  # type: ignore
+                book = str(ll[idx].parent["title"])  # type: ignore
+            else:
+                book = ""
+            ln = str(ll[idx]["name"])
+            br = book + ":" + ln
+        except KeyError:
+            br = "<??>"
+        br_ary.append(br)
+
+    df = pd.DataFrame()
+    df["Chunk"] = chunk_ary
+    df["Bookref"] = br_ary
+    if name:
+        df["Work"] = name
+    if author:
+        df["Author"] = author
+
+    return df
 
 
 def slurp(fn: str) -> tuple[BeautifulSoup, list[Tag]]:
