@@ -738,6 +738,9 @@ class Babbler:
                             tests[idx].baseline, m, max_brute=max_brute
                         )
 
+                    if not bl:
+                        bl = 0.5
+
                     expected = (t + f) * bl
                     if t < expected:
                         alt = "less"
