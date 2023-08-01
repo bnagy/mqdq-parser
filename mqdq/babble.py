@@ -18,7 +18,6 @@ from typing import Callable, Any, Optional, Union
 
 
 def slant_leo(ll: LineSet) -> Union[LineSet, None]:
-
     if len(ll) != 1:
         raise ValueError("Need %s line." % 1)
 
@@ -73,8 +72,7 @@ def build_filter(
     baseline: Any = "",  # gross, but the type checker hates str|int for some reason
     cross: bool = False,
 ) -> Callable[[LineSet], LineSet]:
-    def filterfn(ll):
-
+    def filterfn(ll: LineSet) -> LineSet:
         if len(ll) != length:
             raise ValueError("Need %s lines." % length)
 
@@ -84,7 +82,7 @@ def build_filter(
             w2 = ll[t["w2"]["line"]].fetch(t["w2"]["idx"])
             s = rhyme.word_rhyme(w1, w2)
             if not t["op"](s, t["thresh"]):
-                return None
+                continue
             if t["op"] == operator.ge:
                 w1.color = w2.get_color()
                 w2.color = w1.color
@@ -290,7 +288,6 @@ def _pivot(df: pd.DataFrame) -> pd.DataFrame:
 class Babbler:
     @classmethod
     def from_file(cls, *fns: str, name: str = "", author: str = ""):
-
         raw_source = []
         for fn in fns:
             _, ll = utils.slurp(fn)
@@ -304,7 +301,6 @@ class Babbler:
     def __init__(
         self, ll: list[Tag], name: Optional[str] = None, author: Optional[str] = None
     ):
-
         source_h = [l for l in ll if l["metre"] == "H"]
         source_p = [l for l in ll if l["metre"] == "P"]
         self.source_h = self.preprocess(source_h)
@@ -358,7 +354,6 @@ class Babbler:
         return w["mqdq"]["sy"][:2]
 
     def _joinable(self, w1, w2):
-
         w1_sy = w1["syls"]
         w2_sy = w2["syls"]
         w1_last = None if not w1_sy else w1_sy[-1]
@@ -367,7 +362,6 @@ class Babbler:
         w2_first = None if not w2_first else w2_first[0]
 
         try:
-
             # workaround for some MQDQ texts that mistakenly
             # include bare punctuation as 'words'
             if not any(x in string.ascii_letters for x in w2["mqdq"].text):
@@ -463,7 +457,6 @@ class Babbler:
         return []
 
     def _build_hexameter(self):
-
         if not self.source_h:
             raise ValueError("No hexameters in this source text.")
 
@@ -537,7 +530,6 @@ class Babbler:
         raise RuntimeError("Failed to build line somehow!")
 
     def _build_pentameter(self):
-
         if not self.source_p:
             raise ValueError("No pentameters in this source text.")
 
@@ -545,13 +537,11 @@ class Babbler:
         ls = "0T"
         for y in range(10):  # max greedy retries
             for x in range(10):  # max words in a line
-
                 # using Fisher-Yates because most of the time we won't get
                 # through anything like the whole poem when finding a word
                 # to join, so a generator with an early return is better
                 # than shuffling all the indices every time
                 for idx in self._shuffled(list(range(len(self.source_p)))):
-
                     if ls == "3A":
                         # special case for pentameter. The obligatory
                         # central caesura is marked by MQDQ as 3A (start of 3rd
@@ -651,12 +641,10 @@ class Babbler:
         return res
 
     def _scan_samp(self, samp, scanfn, gather=False, metre="both"):
-
         true, false = 0, 0
         gathered = []
 
         for idx in range(len(samp) - scanfn.length):
-
             # ie if the caller passes 'H' for metre,
             # only take chunks that start on a hexameter
             if metre != "both":
@@ -692,17 +680,14 @@ class Babbler:
             return self.hexameter(n)
 
     def simulate(self, mf, n=None, gather=False, metre="both"):
-
         samp = rhyme.syllabify(self._random_lines(n))
 
         return self._scan_samp(samp, mf, gather, metre)
 
     def scan(self, mf, gather=False, metre="both"):
-
         return self._scan_samp(self._syl_source(), mf, gather, metre)
 
     def _propensity(self, ci, t):
-
         l90, mid, h90 = ci(0.9)
         l95, _, h95 = ci(0.95)
         l99, _, h99 = ci(0.99)
@@ -730,7 +715,6 @@ class Babbler:
         return r
 
     def examinate(self, tests=standard_tests, n=101, max_brute=5_000_000):
-
         res = []
         r = pd.DataFrame()
         f = self.bootstrap_ci(*tests, n=n)
@@ -806,7 +790,6 @@ class Babbler:
             return hv.append(hv)
 
     def _rhyme_pct(self, set1, set2=None, n=5000, thresh=rhyme.GLOBAL_RHYME_THRESH):
-
         hit = 0
         idx1 = np.random.randint(len(set1), size=n)
         if set2:
@@ -896,10 +879,8 @@ class Babbler:
     BASELINE_POSITION_DEFAULTS = [-1, -2, "mid"]
 
     def baselines(self, positions=BASELINE_POSITION_DEFAULTS, max_brute=5_000_000):
-
         baselines = {}
         for m in ["H", "P", "cross"]:
-
             if m != "H" and not self.elegiac:
                 continue
 
@@ -917,7 +898,6 @@ class Babbler:
 
     @functools.lru_cache(maxsize=128)
     def _baseline(self, pos, m, max_brute=5_000_000):
-
         """
         Take one baseline. Builds a set of all words appearing at a given
         position, and then determines the rhyminess of that set.
@@ -991,7 +971,6 @@ class Babbler:
 
     @functools.lru_cache(maxsize=128)
     def bootstrap_ci(self, *fns, n=101, m=None, metres=None):
-
         cis = []
 
         if not m:
@@ -1047,7 +1026,11 @@ class Babbler:
         )
         for ll in r:
             ll.colorlink(preserve=True)
-        for x in sorted(r, key=lambda x: x.score(), reverse=True,)[
+        for x in sorted(
+            r,
+            key=lambda x: x.score(),
+            reverse=True,
+        )[
             : max(20, int(len(r) / 10))
         ]:  # top 10% or top 20 at worst
             utils.nbshow(x, book=book)
