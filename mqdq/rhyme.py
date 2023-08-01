@@ -17,8 +17,8 @@ from mqdq.rhyme_classes import Syl, Word, Line, LineSet
 S = Syllabifier()
 VOWELS = "aeiouyAEIOUY"
 ALL_VOWELS = "aeiouyAEIOUYāēīōūȳĀĒĪŌŪȲüÜ\u0304"
-COMBINING_MACRON = u"\u0304"
-COMBINING_TILDE = u"\u0303"
+COMBINING_MACRON = "\u0304"
+COMBINING_TILDE = "\u0303"
 # The 'vowel' in the nucleus can also include a unicode
 # combining macron (U+0304)
 ONC = re.compile(r"([aeiouyAEIOUYāēīōūȳĀĒĪŌŪȲüÜ\u0304\u0303]+)")
@@ -86,7 +86,7 @@ SCAN_HAX = {
 
 PUNCT_SPLIT = re.compile(r"([%s]+)" % re.escape(string.punctuation))
 DEFANCY = str.maketrans(
-    {"ü": "y", u"\u0304": None, u"\u0303": None, "`": None, "_": None}
+    {"ü": "y", "\u0304": None, "\u0303": None, "`": None, "_": None}
 )
 
 
@@ -261,7 +261,10 @@ def _macronize_short_syl(syl):
 
     # remove any existing macrons or tildes to make sure we
     # are idempotent here
-    l = [x.translate(DEMACRON) + COMBINING_MACRON if x in VOWELS else x for x in list(syl)]
+    l = [
+        x.translate(DEMACRON) + COMBINING_MACRON if x in VOWELS else x
+        for x in list(syl)
+    ]
     return "".join(l)
 
 
@@ -343,6 +346,11 @@ def _punct_split(w):
     # these match, eg ['', '(', 'huc', ')', '']
     ary = PUNCT_SPLIT.split(w.text)
     l = len(ary)
+
+    # TODO: rarely, Ovid does a thing which editors render by putting a
+    # conjunction outside a quote mark. This leaves the quote inside a word,
+    # like 'Amor"que dixit "melior est...'. This breaks stuff. Not fixed yet
+    # because all of the fixes I can think of are awful regexps.
     if l == 5:
         return [ary[1], ary[2], ary[3]]
     elif l == 3:
@@ -483,7 +491,7 @@ def _phonetify(w) -> Word:
     sarr = re.findall("[1-9ATXbc]{1,2}|`|_", la._get_syls_with_stress(w.mqdq))
     if "`" in sarr:
         # strip leading ` if it's there, to stay idempotent
-        w.syls[sarr.index("`")] = "`" + w.syls[sarr.index("`")].lstrip('`')
+        w.syls[sarr.index("`")] = "`" + w.syls[sarr.index("`")].lstrip("`")
 
     if len(w.syls) > 0 and w.syls[-1][-1] in "mM":
         # elision has taken place by now, so final m does not
@@ -493,7 +501,7 @@ def _phonetify(w) -> Word:
         # if what's left ends with a macron, it was a vowel
         # that now needs to be nasalised (tilde) instead
         # 4/22 allow tilde to be stacked onto macron
-        if w.syls[-1][-1] in VOWELS or w.syls[-1][-1]==COMBINING_MACRON:
+        if w.syls[-1][-1] in VOWELS or w.syls[-1][-1] == COMBINING_MACRON:
             w.syls[-1] += COMBINING_TILDE
         # Change 16/11/20: reverse my previous practice of dropping final m
         # I still don't think they're pronounced, but they matter for working
