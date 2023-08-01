@@ -4,7 +4,7 @@ import os
 
 setup(
     name="MQDQParser",
-    version="0.6.1",
+    version="0.6.2",
     author="Ben Nagy",
     packages=["mqdq", "mqdq.cltk_hax"],
     license="3-Clause BSD",
