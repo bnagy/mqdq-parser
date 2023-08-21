@@ -40,7 +40,7 @@ def explain(x, dist):
     # NB: this produces the SQUARE of the distance ([x-m].C^{-1}.[x-m]^T)
     # which is what we want if we're claiming that the chi-sq distribution applies
 
-    x_minus_mu = x - np.mean(dist)
+    x_minus_mu = x - np.mean(dist,axis=0)
     cov = np.cov(dist.values.T)
     inv_covmat = sp.linalg.inv(cov)
     left_term = np.dot(x_minus_mu, inv_covmat)
