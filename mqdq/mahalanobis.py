@@ -6,43 +6,52 @@ import pandas as pd
 import numpy as np
 import scipy as sp
 from scipy.stats import chi2
+from sklearn.covariance import ShrunkCovariance
 
-def explain(x, dist):
 
+def explain(x, dist, shrinkage=0.0):
     """Calculate the Mahalanobis distance of a vector x from
-    the distribution dist. This also returns a contribution vector
-    which shows how much each feature contributes to the distance.
+    the distribution dist. This also returns a contribution vector which shows
+    how much each feature contributes to the distance.
 
-    You may notice that some features in that vector have negative values.
-    The vector itself will always sum to a non-negative value, because
-    of the nature of the calculation (the co-variance matrix is positive
-    semi-definite). The negative value features occur when there is
-    correlation. For example, if feature A scores contributes 20 to the
-    distance, but it is correlated with feature B, then B might have a
-    negative value to compensate for 'double counting' those features.
+    You may notice that some features in that vector have negative values. The
+    vector itself will always sum to a non-negative value, because of the nature
+    of the calculation (the co-variance matrix is positive semi-definite). The
+    negative value features occur when there is correlation. For example, if
+    feature A scores contributes 20 to the distance, but it is correlated with
+    feature B, then B might have a negative value to compensate for 'double
+    counting' those features.
 
-    The interpretability of the contribution vector is open to debate. It
-    is not clear what statistical meaning the individual values have, but
-    in my tests they have reflected what appear to be 'real' feature effects.
+    The interpretability of the contribution vector is open to debate. It is not
+    clear what statistical meaning the individual values have, but in my tests
+    they have reflected what appear to be 'real' feature effects.
 
     Args:
         x (ideally a pandas.DataFrame): The observation to consider
+
         dist (pandas.DataFrame) : The distribution to take the distance from
+
+        shrinkage (float): Shrinkage (alpha) parameter to regularize the inverse
+        covariance matrix. This can be useful when there are not many samples
+        compared to features (the inverse covariance matrix can be numerically
+        unstable). A value of 0 (default) is equivalent to the empirical matrix.
+        0.1 is the default for scikit-learn's ShrunkCovariance.
 
     Returns:
         f (pandas.DataFrame): Feature contribution vector
+
         m (float64): Mahalanobis distance squared. m is the sum of f.
+
         p: The p-value calculated from m, assuming it follows a chi-square
-           distribution, and using the default degrees of freedom (dim(dist)-1) 
+           distribution, and using the default degrees of freedom (dim(dist)-1)
     """
 
     # hat-tip: https://www.machinelearningplus.com/statistics/mahalanobis-distance/
     # NB: this produces the SQUARE of the distance ([x-m].C^{-1}.[x-m]^T)
     # which is what we want if we're claiming that the chi-sq distribution applies
 
-    x_minus_mu = x - np.mean(dist,axis=0)
-    cov = np.cov(dist.values.T)
-    inv_covmat = sp.linalg.inv(cov)
+    x_minus_mu = x - np.mean(dist, axis=0)
+    inv_covmat = ShrunkCovariance(shrinkage=shrinkage).fit(dist).get_precision()
     left_term = np.dot(x_minus_mu, inv_covmat)
 
     # for the normal Mahalanobis distance we would take the dot product here
@@ -52,15 +61,24 @@ def explain(x, dist):
     # we've moved one vector into some weird space defined by the covariance matrix.
     # It seems to have explanatory meaning, though.
 
-    v = left_term*x_minus_mu
+    v = left_term * x_minus_mu
 
     m = np.dot(left_term, x_minus_mu.T)[0]
-    p = 1 - chi2.cdf(m, len(x.columns)-1)[0]
+    p = 1 - chi2.cdf(m, len(x.columns) - 1)[0]
 
     return (v, m[0], p)
 
-def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None, rd=None):
 
+def chunk_explain(
+    samp,
+    dist,
+    n=5000,
+    chunksz=None,
+    feats=la.ALL_FEATURES,
+    seed=None,
+    rd=None,
+    shrinkage=0.0,
+):
     """Take a sample and a distribution, and test the Mahalanobis distance
     of the sample against a randomly sampled distribution drawn from dist.
 
@@ -77,12 +95,17 @@ def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=
         seed (int, optional): seed the PRNG for the shuffling.
         feats (list, default=la.ALL_FEATURES): Features to use
         rd (pandas.DataFrame): Pregenerated random sampled distribution
+        shrinkage (float): Shrinkage (alpha) parameter to regularize the inverse
+        covariance matrix. This can be useful when there are not many samples
+        compared to features (the inverse covariance matrix can be numerically
+        unstable). A value of 0 (default) is equivalent to the empirical matrix.
+        0.1 is the default for scikit-learn's ShrunkCovariance.
 
     Returns (as per explain):
         f (pandas.Series): Feature contribution vector (sorted)
         m (float64): Mahalanobis distance squared. m is the sum of f.
         p: The p-value calculated from m, assuming it follows a chi-square
-           distribution, and using the default degrees of freedom (dim(dist)-1)     
+           distribution, and using the default degrees of freedom (dim(dist)-1)
     """
 
     s = samp[feats]
@@ -92,15 +115,17 @@ def chunk_explain(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=
 
     if rd is None:
         rand_dist = _create_sampled_dist(d, chunksz, n, seed)
-    else:   
+    else:
         rand_dist = rd[feats]
 
     samp_centroid = la._chunk_mean(s, len(s))
-    v,m,p = explain(samp_centroid, rand_dist)
-    return( m, p, v.mean().sort_values(ascending=False) )
+    v, m, p = explain(samp_centroid, rand_dist, shrinkage)
+    return (m, p, v.mean().sort_values(ascending=False))
 
-def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None, rd=None):
 
+def lazy_compare(
+    samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=None, rd=None
+):
     """Print a quick comparison of a sample against a distribution,
     using chunk_explain (cf).
 
@@ -139,17 +164,20 @@ def lazy_compare(samp, dist, n=5000, chunksz=None, feats=la.ALL_FEATURES, seed=N
         Nothing (prints output)
     """
 
-
-    m,p,f = chunk_explain(samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd)
-    samp_cent = la._chunk_mean(samp,len(samp))
-    dist_cent = la._chunk_mean(dist,len(dist))
-    print('-'*30)
-    print("M-dist %.2f,  p-value: %.4f" % (m,p))
+    m, p, f = chunk_explain(samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd)
+    samp_cent = la._chunk_mean(samp, len(samp))
+    dist_cent = la._chunk_mean(dist, len(dist))
+    print("-" * 30)
+    print("M-dist %.2f,  p-value: %.4f" % (m, p))
     print("Feat \t Score \t Samp% \t Dist%")
-    print('-'*30)
-    for feat,score in f.iteritems():
-        print("%s   %6.2f    %5.2f    %5.2f" % (feat, score, samp_cent[feat]*100, dist_cent[feat]*100))
-    print('-'*30)
+    print("-" * 30)
+    for feat, score in f.iteritems():
+        print(
+            "%s   %6.2f    %5.2f    %5.2f"
+            % (feat, score, samp_cent[feat] * 100, dist_cent[feat] * 100)
+        )
+    print("-" * 30)
+
 
 def _compare_latex(
     lines,
@@ -159,22 +187,21 @@ def _compare_latex(
     feats=la.ALL_FEATURES,
     seed=None,
     rd=None,
-    soup=None):
+    soup=None,
+):
+    """Creates a LaTeX table with results similar to lazy_compare"""
 
-    """Creates a LaTeX table with results similar to lazy_compare
-    """
-
-    preamble=r"""
+    preamble = r"""
 \begin{tabular}{ crcc }
 \toprule
 \multicolumn{2}{c}{Book Ref.} & $M^{2}$ & \multicolumn{1}{c}{\textit{p}-value}\\
 """
     samp = la.distribution(lines)
-    m,p,f = chunk_explain(samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd)
-    samp_cent = la._chunk_mean(samp,len(samp))
-    dist_cent = la._chunk_mean(dist,len(dist))
+    m, p, f = chunk_explain(samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd)
+    samp_cent = la._chunk_mean(samp, len(samp))
+    dist_cent = la._chunk_mean(dist, len(dist))
     br = utils.bookrange(lines, soup)
-    print(preamble, end='')
+    print(preamble, end="")
     if p < 0.0001:
         p = "$<$\\,0.0001"
     else:
@@ -183,13 +210,16 @@ def _compare_latex(
     print("\\midrule")
     print("Feat & Score & Samp.\\,\\% & Mean\\,\\% \\\\")
     print("\\midrule")
-    for feat,score in f.iteritems():
-        print("\\texttt{%s} & %6.2f & %5.2f & %5.2f \\\\" % (feat, score, samp_cent[feat]*100, dist_cent[feat]*100))
+    for feat, score in f.iteritems():
+        print(
+            "\\texttt{%s} & %6.2f & %5.2f & %5.2f \\\\"
+            % (feat, score, samp_cent[feat] * 100, dist_cent[feat] * 100)
+        )
     print("\\bottomrule")
     print(r"""\end{tabular}""")
 
-def _create_sampled_dist(dist, chunksz, distsz, seed=None):
 
+def _create_sampled_dist(dist, chunksz, distsz, seed=None):
     """Take a lot of random samples from a binary distribution, each one of size
     chunksz.
 
