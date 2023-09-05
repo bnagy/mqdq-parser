@@ -69,6 +69,32 @@ def explain(x, dist, shrinkage=0.0):
     return (v, m[0], p)
 
 
+def compare_elegy(samp, dist, shrinkage=0.0, lim=-1):
+    v, m, p = explain(samp, dist, shrinkage)
+    dist_cent = dist.mean(axis=0)
+    print("-" * 36)
+    print("  M-dist %.2f,  p-value: %.4f" % (m, p))
+    print("  Feat \t Score \t   Samp      Dist")
+    print("-" * 36)
+    v = v.mean(axis=0).sort_values(ascending=False)
+    i = 0
+    for feat, score in v.items():
+        samp_n = samp[feat].iloc[0]
+        dist_n = dist_cent[feat]
+        if feat in ("LEO", "ELC", "RS", "LEN", "PFSD"):
+            print("%4.4s   %6.2f    %6.2f    %6.2f" % (feat, score, samp_n, dist_n))
+        else:
+            print(
+                "%4.4s   %6.2f    %6.2f%%   %6.2f%%"
+                % (feat, score, samp_n * 100, dist_n * 100)
+            )
+        i += 1
+        if i >= lim and lim > 0:
+            print(f"  [truncating at limit = {lim}]")
+            break
+    print("-" * 36)
+
+
 def chunk_explain(
     samp,
     dist,
@@ -197,10 +223,12 @@ def _compare_latex(
 \multicolumn{2}{c}{Book Ref.} & $M^{2}$ & \multicolumn{1}{c}{\textit{p}-value}\\
 """
     samp = la.distribution(lines)
-    m, p, f = chunk_explain(samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd)
+    m, p, f = chunk_explain(
+        samp, dist, n, chunksz, feats=feats, seed=seed, rd=rd
+    )  # type:ignore
     samp_cent = la._chunk_mean(samp, len(samp))
     dist_cent = la._chunk_mean(dist, len(dist))
-    br = utils.bookrange(lines, soup)
+    br = utils.bookrange(lines, soup)  # type:ignore
     print(preamble, end="")
     if p < 0.0001:
         p = "$<$\\,0.0001"
