@@ -10,6 +10,7 @@
 HOPEFULLY, you can just do pip install MQDQParser and it will all work. Open issues if not.
 
 Latest pypi version: 0.6.1
+Latest github version: 0.7.0
 
 ## Usage
 
