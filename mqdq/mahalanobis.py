@@ -72,8 +72,12 @@ def explain(x, dist, shrinkage=0.0):
 def compare_elegy(samp, dist, shrinkage=0.0, lim=-1):
     v, m, p = explain(samp, dist, shrinkage)
     dist_cent = dist.mean(axis=0)
+    if shrinkage > 0:
+        doubt = " [?]"
+    else:
+        doubt = ""
     print("-" * 36)
-    print("  M-dist %.2f,  p-value: %.4f" % (m, p))
+    print(f"  M-dist {m:.2f}  p-value: {p:.4f}{doubt}")
     print("  Feat \t Score \t   Samp      Dist")
     print("-" * 36)
     v = v.mean(axis=0).sort_values(ascending=False)
