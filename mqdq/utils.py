@@ -13,8 +13,8 @@ import bisect
 
 import dominate
 from dominate import tags
-from IPython.core.display import display, HTML
-
+from IPython.core.display import HTML
+from IPython.display import display
 from mqdq.rhyme_classes import LineSet
 
 DEFANCY = str.maketrans(
@@ -23,7 +23,6 @@ DEFANCY = str.maketrans(
 
 
 def grep(soup: BeautifulSoup, s: str) -> list[Tag]:
-
     """
     Case insensitive grep on the text contents of BeautifulSoup object.
 
@@ -50,7 +49,6 @@ def blat(
     phon: bool = False,
     number_with=None,
 ):
-
     """
     Quickly print the text of a set of lines to screen
 
@@ -76,7 +74,6 @@ def blatsave(
     phon: bool = False,
     number_with: Optional[BeautifulSoup] = None,
 ):
-
     """
     Quickly write the text of a set of lines to a file.
     Opens filename with mode 'w' (will truncate and overwrite).
@@ -106,7 +103,6 @@ def txt(
     phon: bool = False,
     number_with: Optional[BeautifulSoup] = None,
 ) -> str:
-
     """
     Extract the text from a (single) line.
 
@@ -123,7 +119,6 @@ def txt(
     """
 
     try:
-
         words = l("word")
 
         l_prefix = ""
@@ -178,7 +173,6 @@ def raw_phonemics(l: Tag) -> list[str]:
 
 
 def _align(*ll: list[str]) -> str:
-
     # align a list of lists of strings
     ss = ["" for l in ll]
     # each list needs the same number of elements
@@ -204,7 +198,6 @@ def txt_and_number(
     phon: bool = False,
     start_at: int = 1,
 ) -> list[str]:
-
     """
     Extract the text from a list of lines, with numbers. Where `txt` uses references to the text,
     this uses independent numbers. Use this method if you want to print out a sequentially numbered
@@ -238,7 +231,6 @@ def txt_and_number(
 
 
 def which_book(l: Tag, soup: BeautifulSoup) -> Union[str, None]:
-
     """
     Determine which book in a BeautifulSoup contains a given line.
 
@@ -266,7 +258,6 @@ def by_ref(bn: int, ln: int, soup: BeautifulSoup) -> Union[Tag, None]:
 
 
 def bookref(l: Tag, soup: BeautifulSoup) -> Union[str, None]:
-
     """
     Return a formatted reference book:line for a given line and text.
 
@@ -298,7 +289,6 @@ def bookrange(ll: list[Tag], soup: BeautifulSoup) -> str:
 
 
 def clean(ll: list[Tag]) -> list[Tag]:
-
     """
     Remove all corrupt lines from a list of MQDQ bs4 lines
 
@@ -319,7 +309,6 @@ def clean(ll: list[Tag]) -> list[Tag]:
 
 
 def indices_to_bookref(soup: BeautifulSoup, rr: list[int]) -> list[tuple[int, int]]:
-
     # parsing the soup is slow, so do it once.
     # get the starting points of each book
     cumsums = list(np.cumsum([len(d("line")) for d in soup("division")]))
@@ -404,7 +393,6 @@ def _make_p(
     book=False,
     line=False,
 ) -> tags.p:
-
     # CSS style for words that will have a background colour
     setbg = """
     background-color: %s;
