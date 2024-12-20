@@ -288,10 +288,44 @@ def bookrange(ll: list[Tag], soup: BeautifulSoup) -> str:
     return "--".join([x.strip() for x in ["%s:%s" % (b1, l1), "%s%s" % (b2, l2)]])
 
 
+def _build_hex_pattern(syls: str) -> str:
+    pattern = ""
+    for i in range(4):
+        if syls.count(str(i + 1)) == 2:
+            pattern += "S"
+        elif syls.count(str(i + 1)) == 3:
+            pattern += "D"
+        else:
+            raise ValueError(f"Unknown foot in {syls}")
+    return pattern
+
+
+def _build_pent_pattern(syls: str) -> str:
+    pattern = ""
+    for i in ["1", "2", "4", "5"]:
+        if syls.count(i) == 2:
+            pattern += "S"
+        elif syls.count(i) == 3:
+            pattern += "D"
+        else:
+            raise ValueError(f"Unknown foot in {syls}")
+    pattern = pattern[:2] + "-|" + pattern[2:] + "-"
+    return pattern
+
+
+def _build_pattern(syls: str) -> str:
+    if syls.count("3") == 1:
+        # pentameter, because the 'half foot' at the caesura has only one syllable
+        return _build_pent_pattern(syls)
+    else:
+        return _build_hex_pattern(syls)
+
+
 def fix_meters(ll: list[Tag]) -> None:
     """
     For "free scansions" from Pedecerto, elegiac couplets have all the meters set to 'E' instead of
-    alternating H and P. This fixes that.
+    alternating H and P. This fixes that, and also adds the line pattern, which is not filled in in
+    that output
 
     Args:
         ll (list[bs4.element.Tag]): Lines to fix meters
@@ -312,6 +346,8 @@ def fix_meters(ll: list[Tag]) -> None:
             l["metre"] = "P"
         else:
             raise ValueError(f"Cannot determine meter type: {l})")
+
+        l["pattern"] = _build_pattern(syl)
 
 
 def clean(ll: list[Tag]) -> list[Tag]:
