@@ -288,6 +288,32 @@ def bookrange(ll: list[Tag], soup: BeautifulSoup) -> str:
     return "--".join([x.strip() for x in ["%s:%s" % (b1, l1), "%s%s" % (b2, l2)]])
 
 
+def fix_meters(ll: list[Tag]) -> None:
+    """
+    For "free scansions" from Pedecerto, elegiac couplets have all the meters set to 'E' instead of
+    alternating H and P. This fixes that.
+
+    Args:
+        ll (list[bs4.element.Tag]): Lines to fix meters
+
+    Returns:
+        nothing (modifies the lines and their containing soup in-place)
+    """
+    for l in ll:
+        ww = l.find_all("word")
+        syl = "".join([w["sy"] for w in ww])
+        # inconsistency between meter and metre, force the latter
+        if l.has_attr("meter"):
+            del l["meter"]
+
+        if "6A6X" in syl:
+            l["metre"] = "H"
+        elif "5c6X" in syl:
+            l["metre"] = "P"
+        else:
+            raise ValueError(f"Cannot determine meter type: {l})")
+
+
 def clean(ll: list[Tag]) -> list[Tag]:
     """
     Remove all corrupt lines from a list of MQDQ bs4 lines
@@ -299,13 +325,19 @@ def clean(ll: list[Tag]) -> list[Tag]:
         list[bs4.element.Tag]: The lines, with the corrupt ones removed.
     """
 
-    return [
+    ll = [
         l
         for l in ll
         if l.has_attr("pattern")
         and l["pattern"] != "corrupt"
         and l["pattern"] != "not scanned"
     ]
+
+    # pedecerto free scansion of elegy
+    if ll[0].has_attr("meter") and ll[0]["meter"] == "E":
+        fix_meters(ll)
+
+    return ll
 
 
 def indices_to_bookref(soup: BeautifulSoup, rr: list[int]) -> list[tuple[int, int]]:
