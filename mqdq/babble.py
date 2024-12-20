@@ -747,16 +747,16 @@ class Babbler:
                     else:
                         alt = "greater"
 
-                    p = stats.binom_test(t, t + f, bl, alternative=alt)
+                    p = stats.binomtest(t, t + f, bl, alternative=alt)
                     # If we have simulated baselines then we can make a more conservative
                     # estimate of the p value by using the 95th percentile (simulated)
                     # baseline as our ground truth for the binomial test (and similar for
                     # the 5th if our chosen alternative is 'less')
                     extreme_p = p
                     if alt == "less" and bl5:
-                        extreme_p = stats.binom_test(t, t + f, bl5, alternative=alt)
+                        extreme_p = stats.binomtest(t, t + f, bl5, alternative=alt)
                     if alt == "greater" and bl95:
-                        extreme_p = stats.binom_test(t, t + f, bl95, alternative=alt)
+                        extreme_p = stats.binomtest(t, t + f, bl95, alternative=alt)
                 else:
                     expected = 0
                     alt = None
