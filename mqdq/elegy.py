@@ -7,7 +7,6 @@ import copy
 
 
 def metre_vectors(bab):
-
     """Take a Babbler for an elegiac work and return a Pandas
     Dataframe containing the metrical features. The features
     are broadly the same as +line_analyzer.BINARY_FEATURES+ (cf)
@@ -59,7 +58,6 @@ LEO = {"mid": [(-1, 0)]}
 
 
 def elegy_vector(bab):
-
     """Take a Babbler for an elegiac work and return a Pandas
     Dataframe containing the poetic features. The metrical features
     are broadly the same as +line_analyzer.BINARY_FEATURES+ (cf)
@@ -102,12 +100,11 @@ def elegy_vector(bab):
     chunked_feats["LEO"] = leo
     chunked_feats["LEN"] = len(cl)
     pent_finals = [la.word_idx_syls(l, -1) for l in bab.raw_source if l["metre"] == "P"]
-    chunked_feats["PFSD"] = sp.std(pent_finals)
+    chunked_feats["PFSD"] = sp.stats.tstd(pent_finals)
     return chunked_feats
 
 
 def vectorise_babs(babs):
-
     """Create a DataFrame containing the +elegy_vector+ (cf) of several
     Babblers.
 
