@@ -7,12 +7,11 @@ from mqdq import utils
 from mqdq import rhyme
 
 DEFANCY = str.maketrans(
-    {"ü": "y", u"\u0304": None, u"\u0303": None, "`": None, "_": None}
+    {"ü": "y", "\u0304": None, "\u0303": None, "`": None, "_": None}
 )
 
 
 def classify_caesura(l, n, strict=False):
-
     """Classify the caesura occurring in foot n.
 
     Args:
@@ -47,12 +46,12 @@ def classify_caesura(l, n, strict=False):
             elif re.search("%d[Tc]" % n, w["sy"]):
                 # we've passed the end of the foot in question
                 return "-"
+            # FALL THROUGH ON PURPOSE
     except:
         raise ValueError("Can't handle this: %s" % l)
 
 
 def elision_after_foot(n, l):
-
     """Is there elision after foot n?
 
     Args:
@@ -80,7 +79,6 @@ def elision_after_foot(n, l):
 
 
 def metrical_nucleus(l, strict=False, start=2, end=4):
-
     """
     DEPRECATED: WILL VANISH IN FUTURE VERSIONS. USE: caesurae
 
@@ -102,7 +100,6 @@ caesurae = metrical_nucleus
 
 
 def has_3rd_foot_caes(l, strict=True):
-
     """Determine whether a line has any kind of caesura in the third foot.
 
     Args:
@@ -131,7 +128,6 @@ def has_3rd_foot_caes(l, strict=True):
 
 
 def diaer_after_foot(n, l):
-
     """Determine whether a line contains a bucolic diaeresis.
 
     Args:
@@ -180,7 +176,6 @@ def diaereses(l, start=1, end=5):
 
 
 def has_bd(line):
-
     """Determine whether a line contains a bucolic diaeresis.
 
     Args:
@@ -300,7 +295,6 @@ def _has_elision(w):
 
 
 def ictus_conflicts(l):
-
     """Count the number of ictus conflicts in a line, considering
     every foot (not every word).
 
@@ -316,7 +310,6 @@ def ictus_conflicts(l):
 
 
 def caps(l):
-
     """Count the number of capital letters in a line. This can be
     useful for counting proper nouns, but is very sensitive to
     the properties of your edition. Use with caution.
@@ -335,7 +328,6 @@ CLITICS = ("que", "ne", "ve")
 
 
 def conflict_in_foot(n, l):
-
     """Determine if the nth foot in the given line has an ictus/accent conflict
 
     Args:
@@ -358,7 +350,6 @@ def conflict_in_foot(n, l):
 
 
 def predictors_by_foot(l):
-
     """
     DEPRECATED: NOTHING USES THIS NOW
 
@@ -387,7 +378,7 @@ def predictors_by_foot(l):
     try:
         l1, l2, l3, l4 = list(l["pattern"])[:4]
         h1, h2, h3, h4 = list(harmony(l))
-        c2, c3, c4 = list(metrical_nucleus(l, strict=False))
+        c2, c3, c4 = list(caesurae(l, strict=False))
         bd4 = "T" if has_bd(l) else "F"
 
         f1 = "".join([l1, h1])
@@ -401,7 +392,6 @@ def predictors_by_foot(l):
 
 
 def predictors_by_feature(l):
-
     """
     DEPRECATED: NOTHING USES THIS NOW
 
@@ -425,7 +415,7 @@ def predictors_by_feature(l):
     try:
         f1 = l["pattern"][:4]
         f2 = harmony(l)
-        f3 = metrical_nucleus(l, strict=False)
+        f3 = caesurae(l, strict=False)
         f4 = "T" if has_bd(l) else "F"
 
         return [f1, f2, f3, f4]
@@ -551,7 +541,6 @@ ALL_FEATURES = BINARY_FEATURES + ["ELC"]
 
 
 def chunked_features(ll, n=None, feats=ALL_FEATURES) -> pd.DataFrame:
-
     """Take a set of binary features per line, and return a chunked average.
 
     Eg if the feature was F1S (first foot spondee), every line would be given
@@ -582,14 +571,13 @@ def chunked_features(ll, n=None, feats=ALL_FEATURES) -> pd.DataFrame:
         n = len(ll)
 
     # TODO rewrite map as list comp and test
-    df = pd.DataFrame(map(lambda l: binary_features(l), ll), columns=BINARY_FEATURES) #type: ignore
+    df = pd.DataFrame(map(lambda l: binary_features(l), ll), columns=BINARY_FEATURES)  # type: ignore
     if "ELC" in feats:
         df["ELC"] = [elision_count(l) for l in ll]
     return _chunk_mean(df[feats], n)
 
 
 def elision_count(l):
-
     """Returns the number of elisions in a given line
 
     Args:
@@ -603,7 +591,6 @@ def elision_count(l):
 
 
 def distribution(ll, feats=ALL_FEATURES):
-
     """Transforms the lines into the feature vectors, but doesn't chunk them. This
     means that we have one observation per line. Since this transformation is the
     slowest part of the process it can be useful to do this once before using methods
@@ -624,7 +611,6 @@ def distribution(ll, feats=ALL_FEATURES):
 
 
 def centroid(ll, feats=ALL_FEATURES):
-
     """Returns the centroid (vector average) for the given set of lines
 
     Args:
@@ -638,7 +624,6 @@ def centroid(ll, feats=ALL_FEATURES):
 
 
 def harmony(l, n=4):
-
     """Calculate the ictus conflicts for the first four feet (since the final
     two feet are almost always in harmony)
 
@@ -680,7 +665,6 @@ def raw_phonemics(l):
 
 
 def word_idx_syls(l, idx):
-
     """For a given line, return the number of syllables in the word appearing
     at index `idx`. Attempts to cater for elision and prodelision (eg mea est
     at the end of a line will yield two syllables for the final word).
