@@ -314,11 +314,14 @@ def _build_pent_pattern(syls: str) -> str:
 
 
 def _build_pattern(syls: str) -> str:
-    if syls.count("3") == 1:
-        # pentameter, because the 'half foot' at the caesura has only one syllable
-        return _build_pent_pattern(syls)
-    else:
-        return _build_hex_pattern(syls)
+    try:
+        if syls.count("3") == 1:
+            # pentameter, because the 'half foot' at the caesura has only one syllable
+            return _build_pent_pattern(syls)
+        else:
+            return _build_hex_pattern(syls)
+    except Exception as e:
+        raise e
 
 
 def fix_meters(ll: list[Tag]) -> None:
@@ -342,12 +345,15 @@ def fix_meters(ll: list[Tag]) -> None:
 
         if "6A6X" in syl:
             l["metre"] = "H"
-        elif "5c6X" in syl:
+        elif "6A" not in syl:
             l["metre"] = "P"
         else:
             raise ValueError(f"Cannot determine meter type: {l})")
 
-        l["pattern"] = _build_pattern(syl)
+        try:
+            l["pattern"] = _build_pattern(syl)
+        except ValueError as ve:
+            raise ValueError(f"Error processing line {l}: {ve}")
 
 
 def clean(ll: list[Tag]) -> list[Tag]:
