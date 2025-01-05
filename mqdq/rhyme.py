@@ -198,7 +198,7 @@ def _try_shrink(w, syls, t, t_list, mqdq_slen):
         return syls
 
     # it's much more common to consonantify a 'u' than form a dipthong.
-    for (frm, to) in [("u", "v")]:
+    for frm, to in [("u", "v")]:
         syls = _try_consonantify(frm, to, t, t_list, syls, mqdq_slen)
         if len(syls) <= mqdq_slen:
             return syls
@@ -211,7 +211,7 @@ def _try_shrink(w, syls, t, t_list, mqdq_slen):
 
     # need to form 'oe' before consonantifying 'i' for moenia
 
-    for (frm, to) in [("i", "j")]:
+    for frm, to in [("i", "j")]:
         syls = _try_consonantify(frm, to, t, t_list, syls, mqdq_slen)
         if len(syls) <= mqdq_slen:
             return syls
@@ -332,6 +332,7 @@ def _syllabify_text(w, t):
             print(w)
             raise e
     else:
+        print(w)
         raise ValueError(
             "Length mismatch syllabifying %s (have %s, want length %d)"
             % (w.text, ".".join(syls), mqdq_slen)
@@ -569,7 +570,6 @@ def _elision_phon(line, metre):
 
 
 def syllabify_line(l) -> Line:
-
     """Syllabify a raw MQDQ line. Returns a rhyme_classes.Line.
     Probably better to use +syllabify+ in most cases.
 
@@ -590,7 +590,6 @@ def syllabify_line(l) -> Line:
 
 
 def syllabify(ll) -> LineSet:
-
     """Syllabify a set of raw MQDQ line. Returns a rhyme_classes.LineSet.
 
     Args:
@@ -914,8 +913,7 @@ def _word_rhyme_debug(w1, w2) -> Tuple[float, float, float]:
     return score, stress_score, coda_score
 
 
-def word_rhyme(w1, w2) -> (float):
-
+def word_rhyme(w1, w2) -> float:
     """Score the rhyme of two Words. Safe to call if one or
     both of the words are None (will return 0).
 
