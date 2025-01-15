@@ -332,7 +332,8 @@ def _syllabify_text(w, t):
             print(w)
             raise e
     else:
-        print(w)
+        print(f"Problem word: {w}")
+        print("(most common problem is an empty word)")
         raise ValueError(
             "Length mismatch syllabifying %s (have %s, want length %d)"
             % (w.text, ".".join(syls), mqdq_slen)

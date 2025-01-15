@@ -335,15 +335,18 @@ class Babbler:
         for l in ll:
             x = []
             for w in l("word"):
-                x.append(
-                    {
-                        "mqdq": w,
-                        "syls": [
-                            s.translate(rhyme.DEFANCY).lower()
-                            for s in rhyme._phonetify(rhyme._syllabify_word(w)).syls
-                        ],
-                    }
-                )
+                try:
+                    x.append(
+                        {
+                            "mqdq": w,
+                            "syls": [
+                                s.translate(rhyme.DEFANCY).lower()
+                                for s in rhyme._phonetify(rhyme._syllabify_word(w)).syls
+                            ],
+                        }
+                    )
+                except:
+                    raise ValueError(f"Can't phonetify: {w} in {l}")
             r.append(x)
         return r
 
