@@ -376,7 +376,7 @@ def clean(ll: list[Tag]) -> list[Tag]:
     ]
 
     # pedecerto free scansion of elegy
-    if ll[0].has_attr("meter") and ll[0]["meter"] == "E":
+    if ll and ll[0].has_attr("meter") and ll[0]["meter"] == "E":
         fix_meters(ll)
 
     return ll
