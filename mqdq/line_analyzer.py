@@ -46,6 +46,10 @@ def classify_caesura(l, n, strict=False):
             elif re.search("%d[Tc]" % n, w["sy"]):
                 # we've passed the end of the foot in question
                 return "-"
+            elif re.search(f"{n+1}", w["sy"]):
+                # A half foot with no caesura. This is a scansion bug and can only happen in
+                # pentameters, but we'll catch it elsewhere.
+                return "-"
             # FALL THROUGH ON PURPOSE
     except:
         raise ValueError("Can't handle this: %s" % l)
@@ -93,6 +97,7 @@ def metrical_nucleus(l, strict=False, start=2, end=4):
         (string): A three element string, made up of the following:
                   Q, -, W, or S (Quasi, None, Weak, Strong)
     """
+
     return "".join(map(lambda f: classify_caesura(l, f, strict), range(start, end + 1)))
 
 
@@ -484,7 +489,7 @@ def _pent_diaereses(l):
 def _pent_caesurae(l):
     a = list(caesurae(l, start=1, end=5))
     # The half-foot is an obligatory strong caesura
-    if not a[2]:
+    if a[2] != "S":
         raise ValueError(f"No central caesura in pentameter, scansion invalid. {l}")
     del a[2]
     return a
