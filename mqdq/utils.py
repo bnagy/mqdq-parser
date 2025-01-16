@@ -345,6 +345,9 @@ def fix_meters(ll: list[Tag]) -> None:
 
         if "6A6X" in syl:
             l["metre"] = "H"
+        elif "6A6T7" in syl:
+            # hypermeter! Will this break things?
+            l["metre"] = "H"
         elif "6A" not in syl:
             l["metre"] = "P"
         else:
@@ -356,9 +359,31 @@ def fix_meters(ll: list[Tag]) -> None:
             raise ValueError(f"Error processing line {l}: {ve}")
 
 
+def _remove_elegiac_orphans(ll: list[Tag]) -> list[Tag]:
+    fixed = []
+    # We need to start with a hexameter
+    while ll[0]["metre"] == "P":
+        del ll[0]
+    fixed.append(ll.pop(0))
+    for i, l in enumerate(ll):
+        if l["metre"] == "H" and fixed[-1]["metre"] != "P":
+            # corrupt line must be P, so delete the H before it
+            del fixed[-1]
+            fixed.append(l)
+        elif l["metre"] == "P" and fixed[-1]["metre"] != "H":
+            # corrupt line must be H, so don't include this P
+            continue
+        else:
+            # everything fine
+            fixed.append(l)
+    return fixed
+
+
 def clean(ll: list[Tag]) -> list[Tag]:
     """
-    Remove all corrupt lines from a list of MQDQ bs4 lines
+    Remove all corrupt lines from a list of MQDQ bs4 lines. If the work is in elegiac couplets it
+    will also remove the partner line (hexameter for a pentameter and vice versa). This is required
+    to have the elegy vectorisation tools work correctly (they need an even number of lines.)
 
     Args:
         ll (list[bs4.element.Tag]): Lines to clean
@@ -367,6 +392,7 @@ def clean(ll: list[Tag]) -> list[Tag]:
         list[bs4.element.Tag]: The lines, with the corrupt ones removed.
     """
 
+    initial = len(ll)
     ll = [
         l
         for l in ll
@@ -374,11 +400,16 @@ def clean(ll: list[Tag]) -> list[Tag]:
         and l["pattern"] != "corrupt"
         and l["pattern"] != "not scanned"
     ]
-
+    corrupt = initial - len(ll)
     # pedecerto free scansion of elegy
     if ll and ll[0].has_attr("meter") and ll[0]["meter"] == "E":
         fix_meters(ll)
 
+    if "P" in [l["metre"] for l in ll[:100]]:
+        ll = _remove_elegiac_orphans(ll)
+
+    dropped = initial - len(ll)
+    print(f"Lines: {initial} Corrupt: {corrupt} Total Dropped: {dropped}")
     return ll
 
 
