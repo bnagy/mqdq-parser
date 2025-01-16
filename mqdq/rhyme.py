@@ -599,8 +599,15 @@ def syllabify(ll) -> LineSet:
     Returns:
         (rhyme_classes.LineSet): LineSet object.
     """
-
-    return LineSet([syllabify_line(l) for l in ll])
+    lines = []
+    # do it this way so we can fail more informatively
+    for i, l in enumerate(ll):
+        try:
+            lines.append(syllabify_line(l))
+        except ValueError as e:
+            print(f"Failed to syllabify at index {i} on {l}")
+            raise e
+    return LineSet(lines)
 
 
 # 10/11/20 bumped i-e slightly and o-a slightly based on
