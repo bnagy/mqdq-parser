@@ -409,7 +409,7 @@ def clean(ll: list[Tag]) -> list[Tag]:
         ll = _remove_elegiac_orphans(ll)
 
     dropped = initial - len(ll)
-    print(f"Lines: {initial} Corrupt: {corrupt} Total Dropped: {dropped}")
+    # print(f"Lines: {initial} Corrupt: {corrupt} Total Dropped: {dropped}")
     return ll
 
 

@@ -489,7 +489,7 @@ def _pent_diaereses(l):
 def _pent_caesurae(l):
     a = list(caesurae(l, start=1, end=5))
     # The half-foot is an obligatory strong caesura
-    if a[2] != "S":
+    if a[2] == "-":
         raise ValueError(f"No central caesura in pentameter, scansion invalid. {l}")
     del a[2]
     return a

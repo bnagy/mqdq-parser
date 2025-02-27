@@ -6,3 +6,5 @@ from . import rhyme_classes
 from . import cltk_hax
 from . import babble
 from . import elegy
+
+__version__ = "0.8.2"
